@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "close_face_popups",
+  "name": "关闭拍脸弹窗",
+  "group": "启动",
+  "description": "循环关闭右上角带×或可点击遮罩关闭的拍脸弹窗，断言内城完整界面加载完成",
+  "order": 25,
+  "default_checked": true,
+  "enabled": true,
+  "handler": "pipeline",
+  "controller_target": "game",
+  "pipeline_entry": "关闭拍脸弹窗并等待内城"
+}

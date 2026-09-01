@@ -1,0 +1,52 @@
+{
+  "interface_version": 2,
+  "name": "MaaJiuxiaoTest",
+  "label": "九霄仙府自动化测试",
+  "title": "九霄仙府自动化测试 · MXU",
+  "version": "1.0.0",
+  "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。",
+  "welcome": "mxu/WELCOME.md",
+  "license": "仅供本地学习与自动化测试使用。MXU 遵循 AGPL-3.0。",
+  "controller": [
+    {
+      "name": "WeChatOrGame",
+      "label": "九霄仙府游戏窗口",
+      "description": "主控制器只连接九霄仙府，使右侧实时截图始终预览游戏。微信窗口由 Agent 独立连接。",
+      "type": "Win32",
+      "display_short_side": 720,
+      "win32": {
+        "class_regex": "^Chrome_WidgetWin_0$",
+        "window_regex": "^九霄仙府$",
+        "screencap": "Background",
+        "mouse": "SendMessage",
+        "keyboard": "PostMessage"
+      }
+    }
+  ],
+  "resource": [
+    {
+      "name": "Default",
+      "label": "九霄仙府测试资源",
+      "description": "当前微信界面与九霄仙府模板资源",
+      "path": [
+        "resource"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ]
+    }
+  ],
+  "agent": {
+    "child_exec": "./.venv/Scripts/python.exe",
+    "child_args": [
+      "-u",
+      "./mxu_agent.py"
+    ]
+  },
+  "group": [],
+  "task": [],
+  "import": [
+    "mxu/generated_interface.json"
+  ],
+  "option": {}
+}

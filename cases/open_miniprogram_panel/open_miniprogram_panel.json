@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "open_miniprogram_panel",
+  "name": "打开微信小程序面板",
+  "group": "启动",
+  "description": "如果游戏未打开，则从微信左侧工具栏打开小程序面板",
+  "order": 10,
+  "default_checked": true,
+  "enabled": true,
+  "handler": "ensure_miniprogram_panel"
+}

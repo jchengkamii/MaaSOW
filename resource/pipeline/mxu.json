@@ -1,0 +1,10 @@
+{
+  "MXU执行外部用例": {
+    "recognition": "DirectHit",
+    "action": "Custom",
+    "custom_action": "RunConfiguredCase",
+    "custom_action_param": {
+      "case_id": ""
+    }
+  }
+}

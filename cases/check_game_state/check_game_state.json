@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "check_game_state",
+  "name": "确认游戏界面可操作",
+  "group": "角色信息",
+  "description": "识别主界面头像、聊天返回按钮或已经打开的宗门信息",
+  "order": 30,
+  "default_checked": true,
+  "enabled": true,
+  "handler": "pipeline",
+  "controller_target": "game",
+  "pipeline_entry": "确认游戏界面可操作"
+}

@@ -1,0 +1,11 @@
+{
+    "测试识别宗门信息": {
+        "next": ["测试宗门信息特征"],
+        "timeout": 3000
+    },
+    "测试宗门信息特征": {
+        "recognition": "TemplateMatch",
+        "template": "game/profile_opened.png",
+        "threshold": 0.72
+    }
+}
