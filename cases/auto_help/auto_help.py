@@ -9,6 +9,7 @@ from pathlib import Path
 from cases.auto_help.auto_help_process import (
     process_record_is_running,
     read_process_record,
+    terminate_recorded_process,
     write_process_record,
 )
 
@@ -22,6 +23,7 @@ LOG_PATH = PROJECT_DIR / "debug" / "auto_help.log"
 def _existing_pid() -> int | None:
     record = read_process_record(PID_PATH)
     if not process_record_is_running(record):
+        terminate_recorded_process(record)
         PID_PATH.unlink(missing_ok=True)
         return None
     return int(record["pid"])
@@ -33,6 +35,7 @@ def run(_engine, case) -> str:
         return f"自动帮助已经在后台运行，pid={existing}"
 
     interval = float((case.parameters or {}).get("interval", 1.0))
+    repeat_cooldown = float((case.parameters or {}).get("repeat_cooldown", 1.0))
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     PID_PATH.parent.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
@@ -55,6 +58,8 @@ def run(_engine, case) -> str:
                 str(WORKER_SCRIPT),
                 "--interval",
                 str(max(0.5, interval)),
+                "--repeat-cooldown",
+                str(max(1.0, repeat_cooldown)),
             ],
             cwd=PROJECT_DIR,
             env=environment,

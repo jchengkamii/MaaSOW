@@ -157,6 +157,7 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertEqual("cases.auto_help.auto_help:run", case.extension)
         self.assertFalse(case.default_checked)
         self.assertEqual("后台辅助", case.group)
+        self.assertEqual(1.0, case.parameters["repeat_cooldown"])
         case_dir = CASES_DIR / "auto_help"
         self.assertTrue((case_dir / "auto_help.py").is_file())
         self.assertTrue((case_dir / "auto_help_worker.py").is_file())

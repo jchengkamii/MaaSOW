@@ -10,6 +10,7 @@
   "handler": "python",
   "extension": "cases.auto_help.auto_help:run",
   "parameters": {
-    "interval": 1.0
+    "interval": 1.0,
+    "repeat_cooldown": 1.0
   }
 }

@@ -15,6 +15,7 @@ from app_core import AutomationEngine, CaseDefinition  # noqa: E402
 from cases.auto_help.automation_mutex import AutomationMutex  # noqa: E402
 from cases.auto_help.auto_help_process import (  # noqa: E402
     read_process_record,
+    touch_process_record,
     write_process_record,
 )
 
@@ -37,23 +38,22 @@ def _pipeline_case(case_id: str, entry: str) -> CaseDefinition:
     )
 
 
-def run(interval: float) -> int:
+def run(interval: float, repeat_cooldown: float) -> int:
     launch_token = os.environ.get("AUTO_HELP_LAUNCH_TOKEN", "")
     write_process_record(PID_PATH, os.getpid(), launch_token)
     engine = AutomationEngine(
         log=lambda message: print(f"[自动帮助] {message}", flush=True),
         framework_logging=False,
     )
-    detect_case = _pipeline_case("检测自动帮助", "检测自动帮助按钮")
     click_case = _pipeline_case("点击自动帮助", "点击自动帮助按钮")
-    armed = True
-    absent_count = 0
+    next_click_time = 0.0
     missing_window_count = 0
 
     engine.reload_resources()
     print(f"[自动帮助] 后台监视已启动，pid={os.getpid()}", flush=True)
     try:
         while True:
+            touch_process_record(PID_PATH, os.getpid(), launch_token)
             if engine.find_window("game") is None:
                 missing_window_count += 1
                 if missing_window_count >= 15:
@@ -63,28 +63,25 @@ def run(interval: float) -> int:
                 continue
             missing_window_count = 0
 
+            now = time.monotonic()
+            if now < next_click_time:
+                time.sleep(min(interval, next_click_time - now))
+                continue
+
             mutex = AutomationMutex()
             if not mutex.acquire(timeout=0):
                 mutex.close()
                 time.sleep(interval)
                 continue
             try:
-                if armed:
-                    result = engine.execute_case(click_case)
-                    if result.status == "passed":
-                        print("[自动帮助] 已点击一次，等待按钮消失", flush=True)
-                        armed = False
-                        absent_count = 0
-                else:
-                    result = engine.execute_case(detect_case)
-                    if result.status == "passed":
-                        absent_count = 0
-                    else:
-                        absent_count += 1
-                        if absent_count >= 2:
-                            armed = True
-                            absent_count = 0
-                            print("[自动帮助] 按钮已消失，重新进入等待", flush=True)
+                result = engine.execute_case(click_case)
+                touch_process_record(PID_PATH, os.getpid(), launch_token)
+                if result.status == "passed":
+                    next_click_time = time.monotonic() + repeat_cooldown
+                    print(
+                        f"[自动帮助] 已点击一次，冷却 {repeat_cooldown:g} 秒后继续检测",
+                        flush=True,
+                    )
             finally:
                 mutex.close()
             time.sleep(interval)
@@ -104,8 +101,9 @@ def run(interval: float) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="九霄仙府自动帮助后台监视")
     parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--repeat-cooldown", type=float, default=1.0)
     args = parser.parse_args()
-    return run(max(0.5, args.interval))
+    return run(max(0.5, args.interval), max(1.0, args.repeat_cooldown))
 
 
 if __name__ == "__main__":
