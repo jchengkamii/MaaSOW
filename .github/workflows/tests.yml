@@ -11,6 +11,8 @@ jobs:
   test:
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
 
     steps:
       - name: Checkout
