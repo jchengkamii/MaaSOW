@@ -12,6 +12,11 @@
     },
     {
       "name": "group_03",
+      "label": "日常任务",
+      "default_expand": true
+    },
+    {
+      "name": "group_04",
       "label": "后台辅助",
       "default_expand": true
     }
@@ -156,13 +161,36 @@
       }
     },
     {
+      "name": "auto_radar",
+      "label": "自动雷达",
+      "entry": "MXU执行外部用例",
+      "default_check": false,
+      "description": "返回内城并进入执事堂，优先领取和一键执行，再逐个处理雷达事件",
+      "group": [
+        "group_03"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ],
+      "resource": [
+        "Default"
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_radar"
+          }
+        }
+      }
+    },
+    {
       "name": "auto_help",
       "label": "自动帮助",
       "entry": "MXU执行外部用例",
       "default_check": false,
       "description": "启动独立后台监视：按钮每次出现只点击一次，其他用例执行期间自动暂停",
       "group": [
-        "group_03"
+        "group_04"
       ],
       "controller": [
         "WeChatOrGame"

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "auto_radar",
+  "name": "自动雷达",
+  "group": "日常任务",
+  "description": "从内城或大世界进入执事堂，优先领取和一键执行，再逐个处理雷达事件",
+  "order": 60,
+  "default_checked": false,
+  "enabled": true,
+  "handler": "pipeline",
+  "controller_target": "game",
+  "pipeline_entry": "自动雷达"
+}

@@ -22,7 +22,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(7, len(cases))
+        self.assertEqual(8, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -38,6 +38,7 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertFalse((pipeline_dir / "main.json").exists())
         expected = {
             "auto_help.json",
+            "auto_radar.json",
             "check_game_state.json",
             "close_face_popups.json",
             "mxu.json",
@@ -49,8 +50,10 @@ class FrontendConfigurationTests(unittest.TestCase):
 
         pipeline = load_pipeline_nodes()
         for node_name, node in pipeline.items():
-            for target in node.get("next", []):
-                self.assertIn(target, pipeline, f"{node_name} -> {target}")
+            for edge in ("next", "on_error"):
+                for target in node.get(edge, []):
+                    target_name = target.split("]", 1)[-1] if target.startswith("[") else target
+                    self.assertIn(target_name, pipeline, f"{node_name} -> {target}")
 
     def test_runtime_does_not_save_debug_screenshots(self):
         options = json.loads(
@@ -61,7 +64,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_case_directory_contains_only_expected_active_json(self):
         active = sorted(CASES_DIR.rglob("*.json"))
-        self.assertEqual(7, len(active))
+        self.assertEqual(8, len(active))
         self.assertFalse(list(CASES_DIR.glob("*.json")))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -168,6 +171,63 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertEqual("Click", click["action"])
         self.assertTrue((RESOURCE_DIR / "image" / detect["template"]).is_file())
 
+    def test_auto_radar_prioritizes_bulk_actions_and_bounds_automation(self):
+        case = next(case for case in CaseLoader().load() if case.id == "auto_radar")
+        self.assertEqual("pipeline", case.handler)
+        self.assertEqual("game", case.controller_target)
+        self.assertEqual("自动雷达", case.pipeline_entry)
+        self.assertFalse(case.default_checked)
+
+        pipeline = load_pipeline_nodes()
+        root = pipeline["自动雷达"]
+        self.assertEqual(
+            [
+                "自动雷达确认进入雷达",
+                "自动雷达确认内城",
+                "自动雷达确认大世界",
+                "自动雷达点击黄色返回",
+                "自动雷达点击蓝色返回",
+            ],
+            root["next"],
+        )
+        hall = pipeline["自动雷达点击执事堂"]
+        self.assertEqual("And", hall["recognition"])
+        self.assertEqual(2, len(hall["all_of"]))
+        overworld = pipeline["自动雷达确认大世界"]
+        self.assertEqual("And", overworld["recognition"])
+        self.assertEqual(
+            "game/auto_radar/return_sect_runtime.png",
+            overworld["all_of"][1]["template"],
+        )
+        self.assertEqual(
+            ["自动雷达确认内城", "自动雷达确认大世界"],
+            pipeline["自动雷达等待执行返回内城"]["next"],
+        )
+
+        dispatcher = pipeline["自动雷达调度"]
+        self.assertEqual("[JumpBack]自动雷达点击一键领取", dispatcher["next"][0])
+        self.assertEqual("自动雷达点击一键执行", dispatcher["next"][1])
+        self.assertEqual(1, pipeline["自动雷达点击一键执行"]["max_hit"])
+        self.assertEqual(20, pipeline["自动雷达推进对话"]["max_hit"])
+        self.assertEqual(["自动雷达确认处理完成"], dispatcher["on_error"])
+
+        radar_dir = RESOURCE_DIR / "image" / "game" / "auto_radar"
+        templates = set()
+        for node in pipeline.values():
+            value = node.get("template", [])
+            values = value if isinstance(value, list) else [value]
+            templates.update(
+                item for item in values
+                if isinstance(item, str) and item.startswith("game/auto_radar/")
+            )
+            for child in node.get("all_of", []):
+                if isinstance(child, dict):
+                    value = child.get("template", [])
+                    templates.update(value if isinstance(value, list) else [value])
+        self.assertGreaterEqual(len(templates), 20)
+        for template in templates:
+            self.assertTrue((RESOURCE_DIR / "image" / template).is_file(), template)
+        self.assertTrue(radar_dir.is_dir())
 
 if __name__ == "__main__":
     unittest.main()
