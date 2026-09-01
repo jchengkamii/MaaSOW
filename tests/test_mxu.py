@@ -22,10 +22,12 @@ class MxuIntegrationTests(unittest.TestCase):
         self.assertIn("mxu/generated_interface.json", interface["import"])
 
     def test_saved_preview_device_is_game_window(self):
+        config_path = PROJECT_DIR / "config" / "mxu-MaaJiuxiaoTest.json"
+        if not config_path.is_file():
+            self.skipTest("MXU local configuration is not available")
+
         config = json.loads(
-            (PROJECT_DIR / "config" / "mxu-MaaJiuxiaoTest.json").read_text(
-                encoding="utf-8"
-            )
+            config_path.read_text(encoding="utf-8")
         )
         self.assertEqual(
             "九霄仙府", config["instances"][0]["savedDevice"]["windowName"]
