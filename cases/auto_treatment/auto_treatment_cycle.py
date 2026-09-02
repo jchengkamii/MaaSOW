@@ -59,9 +59,17 @@ def _adjust_and_start_treatment(
                     controller, row, row.plus_x, click_delay
                 )
                 after_probe = _read_treatment_seconds(engine, controller)
+                # 数量区域可能因按钮动画产生像素变化；只要 OCR 时长没有
+                # 增加，就以时长为准判定该行已经拉满，直接切换下一行。
                 if (
-                    changed
-                    and after_probe is not None
+                    after_probe is not None
+                    and after_probe <= current_seconds
+                ):
+                    continue
+                if not changed:
+                    continue
+                if (
+                    after_probe is not None
                     and after_probe > current_seconds
                     and after_probe < target_seconds
                 ):

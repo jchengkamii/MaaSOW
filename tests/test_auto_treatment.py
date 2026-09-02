@@ -286,6 +286,42 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertEqual(19, controller.clicks)
         self.assertEqual((20, True, 1800), (adjustments, reached, seconds))
 
+    def test_all_rows_full_below_target_starts_without_repeated_plus_clicks(self):
+        rows = [
+            type("Row", (), {"minus_x": 100, "plus_x": 500, "y": 600})(),
+            type("Row", (), {"minus_x": 100, "plus_x": 500, "y": 750})(),
+        ]
+        # 每行点击后 OCR 都保持 20 分钟；即使截图变化误报为 True，
+        # 也必须判定拉满并换行，最后直接开始治疗。
+        times = iter((1200, 1200, 1200, 1200, 1200))
+        with (
+            patch.object(auto_treatment_cycle, "detect_treatment_rows", return_value=rows),
+            patch.object(auto_treatment_cycle, "_screenshot", return_value=np.zeros((1, 1, 3))),
+            patch.object(auto_treatment_cycle, "_time_exceeds_target", return_value=False),
+            patch.object(
+                auto_treatment_cycle,
+                "_time_reaches_target",
+                side_effect=(False, False),
+            ),
+            patch.object(
+                auto_treatment_cycle,
+                "_read_treatment_seconds",
+                side_effect=lambda *_args: next(times),
+            ),
+            patch.object(
+                auto_treatment_cycle,
+                "_click_and_detect_change",
+                return_value=True,
+            ) as click,
+            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+        ):
+            result = auto_treatment_cycle._adjust_and_start_treatment(
+                object(), object(), 1800, 0.4, 1.5, 2000
+            )
+
+        self.assertEqual((2, False, 1200), result)
+        self.assertEqual(2, click.call_count)
+
 
 if __name__ == "__main__":
     unittest.main()
