@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from cases.stop_auto_help import stop_auto_help
+from agent.custom.action.stop_auto_help import stop_auto_help
 
 
 class StopAutoHelpTests(unittest.TestCase):

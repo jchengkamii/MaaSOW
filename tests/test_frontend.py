@@ -4,13 +4,19 @@ import json
 import unittest
 from pathlib import Path
 
-from app_core import AutomationEngine, CASES_DIR, PROJECT_DIR, RESOURCE_DIR, CaseLoader
-from gui_app import connection_display
+from agent.core import (
+    AutomationEngine,
+    CUSTOM_ACTION_DIR,
+    PROJECT_DIR,
+    RESOURCE_DIR,
+    TASKS_DIR,
+    CaseLoader,
+)
 
 
 def load_pipeline_nodes() -> dict:
     nodes: dict = {}
-    for path in sorted((RESOURCE_DIR / "pipeline").glob("*.json")):
+    for path in sorted((RESOURCE_DIR / "pipeline").rglob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         duplicates = nodes.keys() & data.keys()
         if duplicates:
@@ -37,13 +43,18 @@ class FrontendConfigurationTests(unittest.TestCase):
         pipeline_dir = RESOURCE_DIR / "pipeline"
         self.assertFalse((pipeline_dir / "main.json").exists())
         expected = {
-            "auto_help.json",
-            "auto_radar.json",
-            "auto_treatment.json",
-            "close_face_popups.json",
-            "mxu.json",
+            "AutoHelp/AutoHelp.json",
+            "AutoRadar/AutoRadar.json",
+            "AutoTreatment/AutoTreatment.json",
+            "CloseFacePopups/CloseFacePopups.json",
+            "Common/Scene/InnerCity.json",
+            "Interface/RunConfiguredCase.json",
         }
-        self.assertEqual(expected, {path.name for path in pipeline_dir.glob("*.json")})
+        actual = {
+            path.relative_to(pipeline_dir).as_posix()
+            for path in pipeline_dir.rglob("*.json")
+        }
+        self.assertEqual(expected, actual)
 
         pipeline = load_pipeline_nodes()
         for node_name, node in pipeline.items():
@@ -59,28 +70,12 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertFalse(options["save_draw"])
         self.assertFalse(options["save_on_error"])
 
-    def test_case_directory_contains_only_expected_active_json(self):
-        active = sorted(CASES_DIR.rglob("*.json"))
+    def test_task_directory_contains_only_expected_active_json(self):
+        active = sorted(TASKS_DIR.rglob("*.json"))
         self.assertEqual(5, len(active))
-        self.assertFalse(list(CASES_DIR.glob("*.json")))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(f"{data['id']}.json", path.name)
-            self.assertEqual(data["id"], path.parent.name)
-
-    def test_connection_status_colors(self):
-        self.assertEqual(
-            ("● 未找到微信", "Connection.Red.TLabel"),
-            connection_display({"wechat_main": False, "wechat_panel": False, "game": False}),
-        )
-        self.assertEqual(
-            "Connection.Yellow.TLabel",
-            connection_display({"wechat_main": True, "wechat_panel": False, "game": False})[1],
-        )
-        self.assertEqual(
-            "Connection.Green.TLabel",
-            connection_display({"wechat_main": True, "wechat_panel": False, "game": True})[1],
-        )
 
     def test_close_face_popups_asserts_inner_city(self):
         cases = CaseLoader().load()
@@ -127,11 +122,11 @@ class FrontendConfigurationTests(unittest.TestCase):
     def test_auto_help_is_an_opt_in_background_case(self):
         case = next(case for case in CaseLoader().load() if case.id == "auto_help")
         self.assertEqual("python", case.handler)
-        self.assertEqual("cases.auto_help.auto_help:run", case.extension)
+        self.assertEqual("agent.custom.action.auto_help.auto_help:run", case.extension)
         self.assertFalse(case.default_checked)
         self.assertEqual("后台辅助", case.group)
         self.assertEqual(1.0, case.parameters["repeat_cooldown"])
-        case_dir = CASES_DIR / "auto_help"
+        case_dir = CUSTOM_ACTION_DIR / "auto_help"
         self.assertTrue((case_dir / "auto_help.py").is_file())
         self.assertTrue((case_dir / "auto_help_worker.py").is_file())
         self.assertTrue((case_dir / "auto_help_process.py").is_file())
@@ -140,7 +135,7 @@ class FrontendConfigurationTests(unittest.TestCase):
         pipeline = load_pipeline_nodes()
         detect = pipeline["自动帮助按钮特征"]
         click = pipeline["识别并点击自动帮助按钮"]
-        self.assertEqual("game/auto_help_button.png", detect["template"])
+        self.assertEqual("AutoHelp/auto_help_button.png", detect["template"])
         self.assertEqual(detect["template"], click["template"])
         self.assertEqual("Click", click["action"])
         self.assertTrue((RESOURCE_DIR / "image" / detect["template"]).is_file())
@@ -155,11 +150,12 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertGreater(stop_case.order, start_case.order)
         self.assertEqual("python", stop_case.handler)
         self.assertEqual(
-            "cases.stop_auto_help.stop_auto_help:run", stop_case.extension
+            "agent.custom.action.stop_auto_help.stop_auto_help:run",
+            stop_case.extension,
         )
         self.assertFalse(stop_case.default_checked)
         self.assertTrue(
-            (CASES_DIR / "stop_auto_help" / "stop_auto_help.py").is_file()
+            (CUSTOM_ACTION_DIR / "stop_auto_help" / "stop_auto_help.py").is_file()
         )
 
     def test_auto_radar_prioritizes_bulk_actions_and_bounds_automation(self):
@@ -187,7 +183,7 @@ class FrontendConfigurationTests(unittest.TestCase):
         overworld = pipeline["自动雷达确认大世界"]
         self.assertEqual("And", overworld["recognition"])
         self.assertEqual(
-            "game/auto_radar/return_sect_runtime.png",
+            "AutoRadar/return_sect_runtime.png",
             overworld["all_of"][1]["template"],
         )
         self.assertEqual(
@@ -202,14 +198,14 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertEqual(20, pipeline["自动雷达推进对话"]["max_hit"])
         self.assertEqual(["自动雷达确认处理完成"], dispatcher["on_error"])
 
-        radar_dir = RESOURCE_DIR / "image" / "game" / "auto_radar"
+        radar_dir = RESOURCE_DIR / "image" / "AutoRadar"
         templates = set()
         for node in pipeline.values():
             value = node.get("template", [])
             values = value if isinstance(value, list) else [value]
             templates.update(
                 item for item in values
-                if isinstance(item, str) and item.startswith("game/auto_radar/")
+                if isinstance(item, str) and item.startswith("AutoRadar/")
             )
             for child in node.get("all_of", []):
                 if isinstance(child, dict):

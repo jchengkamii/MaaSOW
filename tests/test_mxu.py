@@ -3,15 +3,20 @@ from __future__ import annotations
 import json
 import unittest
 
-from app_core import CaseLoader, PROJECT_DIR, RESOURCE_DIR
-from mxu_agent import WORKER_SCRIPT, _parse_case_id, _worker_command
-from sync_mxu_interface import generate
+from agent.core import CaseLoader, PROJECT_DIR, RESOURCE_DIR
+from agent.custom.action.run_configured_case import (
+    WORKER_SCRIPT,
+    parse_case_id,
+    worker_command,
+)
+from generate_interface import generate
 
 
 class MxuIntegrationTests(unittest.TestCase):
     def test_interface_is_project_interface_v2(self):
         interface = json.loads((PROJECT_DIR / "interface.json").read_text(encoding="utf-8"))
         self.assertEqual(2, interface["interface_version"])
+        self.assertEqual("MaaSOW", interface["name"])
         self.assertEqual("resource/app_icon.png", interface["icon"])
         self.assertTrue((PROJECT_DIR / interface["icon"]).is_file())
         self.assertEqual("Win32", interface["controller"][0]["type"])
@@ -21,10 +26,12 @@ class MxuIntegrationTests(unittest.TestCase):
             interface["controller"][0]["win32"]["class_regex"],
         )
         self.assertEqual("./.venv/Scripts/python.exe", interface["agent"]["child_exec"])
-        self.assertIn("mxu/generated_interface.json", interface["import"])
+        self.assertEqual(["resource/base"], interface["resource"][0]["path"])
+        self.assertEqual(["-u", "./agent/main.py"], interface["agent"]["child_args"])
+        self.assertIn("resource/interface.tasks.json", interface["import"])
 
     def test_saved_preview_device_is_game_window(self):
-        config_path = PROJECT_DIR / "config" / "mxu-MaaJiuxiaoTest.json"
+        config_path = PROJECT_DIR / "config" / "mxu-MaaSOW.json"
         if not config_path.is_file():
             self.skipTest("MXU local configuration is not available")
 
@@ -46,22 +53,27 @@ class MxuIntegrationTests(unittest.TestCase):
 
     def test_mxu_pipeline_uses_agent_custom_action(self):
         pipeline = json.loads(
-            (RESOURCE_DIR / "pipeline" / "mxu.json").read_text(encoding="utf-8")
+            (
+                RESOURCE_DIR
+                / "pipeline"
+                / "Interface"
+                / "RunConfiguredCase.json"
+            ).read_text(encoding="utf-8")
         )
         node = pipeline["MXU执行外部用例"]
         self.assertEqual("Custom", node["action"])
         self.assertEqual("RunConfiguredCase", node["custom_action"])
 
     def test_agent_case_parameter_parser(self):
-        self.assertEqual("auto_radar", _parse_case_id('{"case_id":"auto_radar"}'))
-        self.assertEqual("auto_radar", _parse_case_id('"auto_radar"'))
+        self.assertEqual("auto_radar", parse_case_id('{"case_id":"auto_radar"}'))
+        self.assertEqual("auto_radar", parse_case_id('"auto_radar"'))
 
     def test_agent_delegates_cases_to_independent_worker(self):
-        command = _worker_command("auto_radar")
+        command = worker_command("auto_radar")
         self.assertTrue(WORKER_SCRIPT.is_file())
         self.assertEqual("-u", command[1])
-        self.assertEqual(str(WORKER_SCRIPT), command[2])
-        self.assertEqual(["--case-id", "auto_radar"], command[3:])
+        self.assertEqual(["-m", "agent.worker"], command[2:4])
+        self.assertEqual(["--case-id", "auto_radar"], command[4:])
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ Python 依赖由 `requirements.txt` 管理，其中固定使用 MaaFw 5.12.3。
 
 1. 创建 `.venv` Python 3.12 虚拟环境。
 2. 安装 MaaFw Python 依赖。
-3. 根据 `cases` 重新生成 `mxu/generated_interface.json`。
+3. 根据 `resource/tasks` 重新生成 `resource/interface.tasks.json`。
 4. 启动 MXU 前台。
 
 首次进入 MXU 后，选择“九霄仙府游戏窗口”控制器和“九霄仙府测试资源”，
@@ -36,15 +36,17 @@ Python 依赖由 `requirements.txt` 管理，其中固定使用 MaaFw 5.12.3。
 interface.json                         MXU Project Interface V2 主配置
 启动自动化前台.bat                     环境准备与启动入口
 requirements.txt                       Python 运行依赖
-app_core.py                            case 加载、窗口连接和 Maa 执行核心
-mxu_agent.py                           MXU AgentServer 自定义动作
-case_worker.py                         独立 case 工作进程
-sync_mxu_interface.py                  cases -> MXU 任务卡片转换器
-cases/<case_id>/<case_id>.json         外部用例定义
-cases/auto_help/*.py                   自动帮助后台启动与监视逻辑
-cases/stop_auto_help/*.py              自动帮助后台停止逻辑
-resource/pipeline/<case_id>.json       按 case 拆分的 Maa Pipeline
-resource/image/**                      图像识别模板
+agent/main.py                          AgentServer 启动入口
+agent/core.py                          任务加载、窗口连接和 Maa 执行核心
+agent/worker.py                        独立任务工作进程
+agent/custom/action/<case_id>/**       复杂用例与 Maa 自定义动作
+resource/tasks/<case_id>.json          外部任务清单
+resource/base/pipeline/<Domain>/**     按业务域拆分的 Maa Pipeline
+resource/base/image/**                 图像识别模板
+resource/base/model/**                 OCR 等模型资源
+resource/locales/**                    ProjectInterface 展示资源
+resource/interface.tasks.json          生成的 ProjectInterface V2 片段
+generate_interface.py                  MXU 任务卡片生成器
 tests/**                               配置与集成测试
 ```
 
@@ -52,20 +54,19 @@ tests/**                               配置与集成测试
 
 普通 Pipeline 用例通常需要增加或修改：
 
-1. `cases/<case_id>/<case_id>.json`
-2. `resource/pipeline/<case_id>.json`
-3. `resource/image/**`
+1. `resource/tasks/<case_id>.json`
+2. `resource/base/pipeline/<Domain>/*.json`
+3. `resource/base/image/**`
 
 需要循环监视、子进程等复杂行为时，把 Python 文件放在对应的
-`cases/<case_id>/` 目录，并在 case JSON 中使用
-`"extension": "cases.<case_id>.<module>:run"`。
+`agent/custom/action/<case_id>/` 目录，并在任务清单中使用完整模块路径。
 
 修改后重新启动前台即可，不需要重新构建 MXU EXE。
 
 ## 自动化流程说明
 
 - MXU 主控制器固定连接“九霄仙府”窗口，右侧预览不会切回微信。
-- 每张任务卡片通过 `RunConfiguredCase` 交给 `mxu_agent.py`。
+- 每张任务卡片通过 `RunConfiguredCase` 交给 `agent/main.py`。
 - Agent 按 case 需要连接微信主窗口、小程序面板或游戏窗口。
 - “关闭拍脸弹窗”最多处理三轮弹窗，并使用内城左右特征断言主界面。
 - 使用“▶ 开启自动帮助”启动独立隐藏进程循环识别，普通 case 执行时自动暂停。
@@ -77,7 +78,7 @@ tests/**                               配置与集成测试
 ```powershell
 py -3.12 -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-& .\.venv\Scripts\python.exe .\sync_mxu_interface.py
+& .\.venv\Scripts\python.exe .\generate_interface.py
 & .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 

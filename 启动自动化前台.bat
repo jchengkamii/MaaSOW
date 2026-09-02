@@ -18,7 +18,7 @@ if errorlevel 1 (
 )
 
 echo [MaaSOW] Updating MXU task cards...
-"%PROJECT_PYTHON%" "%~dp0sync_mxu_interface.py"
+"%PROJECT_PYTHON%" "%~dp0generate_interface.py"
 if errorlevel 1 goto :error
 
 if not exist "%~dp0九霄仙府自动化测试.exe" (

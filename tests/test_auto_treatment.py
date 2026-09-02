@@ -6,29 +6,39 @@ from unittest.mock import patch
 
 import numpy as np
 
-from app_core import CASES_DIR, RESOURCE_DIR, CaseLoader
-from cases.auto_treatment.auto_treatment import (
+from agent.core import CUSTOM_ACTION_DIR, RESOURCE_DIR, CaseLoader
+from agent.custom.action.auto_treatment.auto_treatment import (
     _crop_changed,
     _parse_treatment_seconds,
     detect_treatment_rows,
 )
-from cases.auto_treatment import auto_treatment_cycle
+from agent.custom.action.auto_treatment import auto_treatment_cycle
 
 
 class AutoTreatmentTests(unittest.TestCase):
     def test_case_is_registered_with_thirty_minute_target(self):
         case = next(case for case in CaseLoader().load() if case.id == "auto_treatment")
         self.assertEqual("python", case.handler)
-        self.assertEqual("cases.auto_treatment.auto_treatment_cycle:run", case.extension)
+        self.assertEqual(
+            "agent.custom.action.auto_treatment.auto_treatment_cycle:run",
+            case.extension,
+        )
         self.assertEqual(1800, case.parameters["target_seconds"])
         self.assertEqual(10.0, case.parameters["poll_interval"])
         self.assertEqual(3, case.parameters["empty_confirmations"])
         self.assertFalse(case.default_checked)
-        self.assertTrue((CASES_DIR / "auto_treatment" / "auto_treatment.py").is_file())
+        self.assertTrue(
+            (CUSTOM_ACTION_DIR / "auto_treatment" / "auto_treatment.py").is_file()
+        )
 
     def test_pipeline_reuses_radar_return_assets_and_has_strict_target(self):
         pipeline = json.loads(
-            (RESOURCE_DIR / "pipeline" / "auto_treatment.json").read_text(
+            (
+                RESOURCE_DIR
+                / "pipeline"
+                / "AutoTreatment"
+                / "AutoTreatment.json"
+            ).read_text(
                 encoding="utf-8"
             )
         )
@@ -36,7 +46,7 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertEqual("自动治疗确认内城", navigation["next"][0])
         self.assertEqual("自动治疗确认大世界", navigation["next"][1])
         yellow = pipeline["自动治疗点击黄色返回"]
-        self.assertIn("game/auto_radar/return_yellow_reference.png", yellow["template"])
+        self.assertIn("AutoRadar/return_yellow_reference.png", yellow["template"])
 
         time_node = pipeline["自动治疗时间超过30分钟"]
         self.assertEqual("OCR", time_node["recognition"])
@@ -48,7 +58,7 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertEqual([662, 163, 8, 8], close_node["target"])
 
     def test_treatment_assets_and_ocr_model_exist(self):
-        image_dir = RESOURCE_DIR / "image" / "game" / "auto_treatment"
+        image_dir = RESOURCE_DIR / "image" / "AutoTreatment"
         for name in (
             "treatment_entry.png",
             "treatment_title.png",

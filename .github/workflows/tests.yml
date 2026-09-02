@@ -28,10 +28,10 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Regenerate MXU interface
-        run: python sync_mxu_interface.py
+        run: python generate_interface.py
 
       - name: Verify generated interface is current
-        run: git diff --exit-code -- mxu/generated_interface.json
+        run: git diff --exit-code -- resource/interface.tasks.json
 
       - name: Run tests
         run: python -m unittest discover -s tests -v

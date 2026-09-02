@@ -1,12 +1,12 @@
 {
   "interface_version": 2,
-  "name": "MaaJiuxiaoTest",
+  "name": "MaaSOW",
   "label": "九霄仙府自动化测试",
   "title": "九霄仙府自动化测试 · MXU",
   "icon": "resource/app_icon.png",
   "version": "1.0.0",
   "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。",
-  "welcome": "mxu/WELCOME.md",
+  "welcome": "resource/locales/interface/WELCOME_zh_cn.md",
   "license": "仅供本地学习与自动化测试使用。MXU 遵循 AGPL-3.0。",
   "controller": [
     {
@@ -30,7 +30,7 @@
       "label": "九霄仙府测试资源",
       "description": "当前微信界面与九霄仙府模板资源",
       "path": [
-        "resource"
+        "resource/base"
       ],
       "controller": [
         "WeChatOrGame"
@@ -41,13 +41,13 @@
     "child_exec": "./.venv/Scripts/python.exe",
     "child_args": [
       "-u",
-      "./mxu_agent.py"
+      "./agent/main.py"
     ]
   },
   "group": [],
   "task": [],
   "import": [
-    "mxu/generated_interface.json"
+    "resource/interface.tasks.json"
   ],
   "option": {}
 }

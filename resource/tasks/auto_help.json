@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "auto_help",
+  "name": "▶ 开启自动帮助",
+  "group": "后台辅助",
+  "description": "启动独立后台监视；按钮每次出现只点击一次，其他用例执行期间自动暂停",
+  "order": 70,
+  "default_checked": false,
+  "enabled": true,
+  "handler": "python",
+  "extension": "agent.custom.action.auto_help.auto_help:run",
+  "parameters": {
+    "interval": 1.0,
+    "repeat_cooldown": 1.0
+  }
+}

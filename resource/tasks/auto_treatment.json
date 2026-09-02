@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "auto_treatment",
+  "name": "自动治疗",
+  "group": "日常任务",
+  "description": "循环治疗伤兵：单次时间刚超过30分钟，仙盟互助后等待完成并自动收取",
+  "order": 65,
+  "default_checked": false,
+  "enabled": true,
+  "handler": "python",
+  "extension": "agent.custom.action.auto_treatment.auto_treatment_cycle:run",
+  "parameters": {
+    "target_seconds": 1800,
+    "click_delay": 0.4,
+    "recognition_timeout": 1.5,
+    "max_adjustments": 2000,
+    "poll_interval": 10.0,
+    "empty_confirmations": 3,
+    "cooperative_mutex": true
+  }
+}
