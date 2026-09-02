@@ -30,30 +30,6 @@ from maa.tasker import Tasker  # noqa: E402
 from maa.toolkit import Toolkit  # noqa: E402
 
 
-ASSET_CROPS = (
-    (
-        PROJECT_DIR / "debug" / "wechat-miniprogram-panel.png",
-        PROJECT_DIR / "resource" / "image" / "wechat" / "jiuxiao_xianfu_entry.png",
-        (120, 135, 190, 215),
-    ),
-    (
-        PROJECT_DIR / "debug" / "jiuxiao-game.png",
-        PROJECT_DIR / "resource" / "image" / "game" / "avatar_button.png",
-        (12, 62, 100, 155),
-    ),
-    (
-        PROJECT_DIR / "debug" / "jiuxiao-after-avatar-click.png",
-        PROJECT_DIR / "resource" / "image" / "game" / "profile_opened.png",
-        (245, 275, 475, 385),
-    ),
-    (
-        PROJECT_DIR / "debug" / "jiuxiao-current.png",
-        PROJECT_DIR / "resource" / "image" / "game" / "chat_back_button.png",
-        (15, 1195, 108, 1305),
-    ),
-)
-
-
 def find_wechat_window(target_title: str = "微信"):
     candidates = []
     for window in Toolkit.find_desktop_windows():
@@ -129,65 +105,11 @@ def run_pipeline(controller: Win32Controller, entry: str) -> None:
     print(f"任务执行成功：{entry}")
 
 
-def prepare_assets() -> None:
-    from PIL import Image
-
-    for source, target, box in ASSET_CROPS:
-        if not source.exists():
-            raise RuntimeError(f"缺少生成模板所需的诊断截图：{source}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with Image.open(source) as image:
-            image.crop(box).save(target)
-        print(f"模板已生成：{target}")
-
-
 def run_offline_tests() -> None:
-    import numpy as np
-    from PIL import Image
-
     resource = Resource()
     if not resource.post_bundle(PROJECT_DIR / "resource").wait().succeeded:
         raise RuntimeError("Maa 加载 resource 失败")
     print("Maa resource 与 Pipeline 解析通过")
-
-    for source, target, box in ASSET_CROPS:
-        with Image.open(source) as screenshot, Image.open(target) as template:
-            actual = np.asarray(screenshot.crop(box).convert("RGB"))
-            expected = np.asarray(template.convert("RGB"))
-        if actual.shape != expected.shape or not np.array_equal(actual, expected):
-            raise RuntimeError(f"模板与来源截图不一致：{target}")
-        print(f"模板来源校验通过：{target.name}")
-
-
-def run_workflow() -> None:
-    game_window = find_exact_window("九霄仙府", "Chrome_WidgetWin_0")
-    if game_window is None:
-        panel_window = find_exact_window("微信", "Chrome_WidgetWin_0")
-        if panel_window is None:
-            main_window = find_exact_window("微信", "Qt51514QWindowIcon")
-            if main_window is None:
-                raise RuntimeError("没有找到微信主窗口")
-            main_controller = create_controller(main_window)
-            main_controller.post_screencap().wait()
-            if not main_controller.post_click(35, 412).wait().succeeded:
-                raise RuntimeError("打开微信小程序面板失败")
-            time.sleep(2)
-            panel_window = find_exact_window("微信", "Chrome_WidgetWin_0")
-        if panel_window is None:
-            raise RuntimeError("没有找到微信小程序面板")
-
-        panel_controller = create_controller(panel_window)
-        run_pipeline(panel_controller, "打开九霄仙府")
-        for _ in range(30):
-            time.sleep(1)
-            game_window = find_exact_window("九霄仙府", "Chrome_WidgetWin_0")
-            if game_window is not None:
-                break
-        if game_window is None:
-            raise RuntimeError("点击入口后没有等到九霄仙府窗口")
-
-    game_controller = create_controller(game_window)
-    run_pipeline(game_controller, "打开或确认宗门信息")
 
 
 def main() -> int:
@@ -195,7 +117,7 @@ def main() -> int:
     parser.add_argument(
         "command",
         nargs="?",
-        default="workflow",
+        default="offline-test",
         choices=(
             "windows",
             "screenshot",
@@ -203,17 +125,15 @@ def main() -> int:
             "key",
             "input",
             "search-game",
-            "prepare-assets",
             "offline-test",
-            "workflow",
             "run",
         ),
-        help="要执行的操作；不填写时默认执行完整 workflow",
+        help="要执行的操作；不填写时默认校验资源与 Pipeline",
     )
     parser.add_argument("--x", type=int)
     parser.add_argument("--y", type=int)
     parser.add_argument("--key", type=int, default=13, help="Win32 虚拟键码，默认 Enter(13)")
-    parser.add_argument("--entry", default="进入九霄仙府并点击头像")
+    parser.add_argument("--entry", default="自动雷达")
     parser.add_argument("--window-title", default="微信")
     parser.add_argument("--text", default="九霄仙府")
     parser.add_argument("--output", type=Path, default=PROJECT_DIR / "debug" / "wechat.png")
@@ -236,16 +156,8 @@ def main() -> int:
                 print(window.hwnd, repr(window.window_name), repr(window.class_name))
         return 0
 
-    if args.command == "prepare-assets":
-        prepare_assets()
-        return 0
-
     if args.command == "offline-test":
         run_offline_tests()
-        return 0
-
-    if args.command == "workflow":
-        run_workflow()
         return 0
 
     window = find_wechat_window(args.window_title)

@@ -4,8 +4,8 @@
 
 ```text
 cases/
-  open_game/
-    open_game.json
+  auto_radar/
+    auto_radar.json
   auto_help/
     auto_help.json
     auto_help.py
@@ -16,7 +16,7 @@ cases/
 并重新双击 `启动自动化前台.bat` 即可，无需重新打包。
 
 Maa Pipeline 按相同 case ID 拆分在 `resource/pipeline` 中，例如
-`cases/open_game/open_game.json` 对应 `resource/pipeline/open_game.json`。
+`cases/auto_radar/auto_radar.json` 对应 `resource/pipeline/auto_radar.json`。
 被多个 case 使用的节点可以跨文件引用，Maa 加载资源时会将这些文件合并为统一的节点表。
 
 ## Maa Pipeline 用例

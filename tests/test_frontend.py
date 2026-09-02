@@ -22,7 +22,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(9, len(cases))
+        self.assertEqual(4, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -40,12 +40,8 @@ class FrontendConfigurationTests(unittest.TestCase):
             "auto_help.json",
             "auto_radar.json",
             "auto_treatment.json",
-            "check_game_state.json",
             "close_face_popups.json",
             "mxu.json",
-            "open_game.json",
-            "open_profile.json",
-            "verify_profile.json",
         }
         self.assertEqual(expected, {path.name for path in pipeline_dir.glob("*.json")})
 
@@ -65,7 +61,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_case_directory_contains_only_expected_active_json(self):
         active = sorted(CASES_DIR.rglob("*.json"))
-        self.assertEqual(9, len(active))
+        self.assertEqual(4, len(active))
         self.assertFalse(list(CASES_DIR.glob("*.json")))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -86,35 +82,11 @@ class FrontendConfigurationTests(unittest.TestCase):
             connection_display({"wechat_main": True, "wechat_panel": False, "game": True})[1],
         )
 
-    def test_open_game_waits_for_main_screen(self):
-        case = next(case for case in CaseLoader().load() if case.id == "open_game")
-        self.assertEqual(120, case.wait_timeout)
-        self.assertEqual("game", case.wait_for_window)
-        self.assertIsNone(case.postcondition_entry)
-        pipeline = load_pipeline_nodes()
-        wait_node = pipeline["等待游戏主界面加载完成"]
-        self.assertEqual(120000, wait_node["timeout"])
-        self.assertEqual(["内城主界面左下特征"], wait_node["next"])
-        left_node = pipeline["内城主界面左下特征"]
-        right_node = pipeline["内城主界面右下特征"]
-        self.assertEqual(2, len(left_node["template"]))
-        self.assertEqual(["内城主界面右下特征"], left_node["next"])
-        self.assertEqual(2, len(right_node["template"]))
-        self.assertNotIn("avatar_button.png", json.dumps(wait_node, ensure_ascii=False))
-        for template in left_node["template"] + right_node["template"]:
-            self.assertTrue((RESOURCE_DIR / "image" / template).is_file())
-
-    def test_close_face_popups_runs_after_open_game_and_asserts_inner_city(self):
+    def test_close_face_popups_asserts_inner_city(self):
         cases = CaseLoader().load()
-        open_index = next(i for i, case in enumerate(cases) if case.id == "open_game")
         close_index = next(
             i for i, case in enumerate(cases) if case.id == "close_face_popups"
         )
-        check_index = next(
-            i for i, case in enumerate(cases) if case.id == "check_game_state"
-        )
-        self.assertLess(open_index, close_index)
-        self.assertLess(close_index, check_index)
         close_case = cases[close_index]
         self.assertEqual("关闭拍脸弹窗并等待内城", close_case.pipeline_entry)
 

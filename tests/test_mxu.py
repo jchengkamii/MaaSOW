@@ -53,15 +53,15 @@ class MxuIntegrationTests(unittest.TestCase):
         self.assertEqual("RunConfiguredCase", node["custom_action"])
 
     def test_agent_case_parameter_parser(self):
-        self.assertEqual("open_game", _parse_case_id('{"case_id":"open_game"}'))
-        self.assertEqual("open_game", _parse_case_id('"open_game"'))
+        self.assertEqual("auto_radar", _parse_case_id('{"case_id":"auto_radar"}'))
+        self.assertEqual("auto_radar", _parse_case_id('"auto_radar"'))
 
     def test_agent_delegates_cases_to_independent_worker(self):
-        command = _worker_command("open_game")
+        command = _worker_command("auto_radar")
         self.assertTrue(WORKER_SCRIPT.is_file())
         self.assertEqual("-u", command[1])
         self.assertEqual(str(WORKER_SCRIPT), command[2])
-        self.assertEqual(["--case-id", "open_game"], command[3:])
+        self.assertEqual(["--case-id", "auto_radar"], command[3:])
 
 
 if __name__ == "__main__":

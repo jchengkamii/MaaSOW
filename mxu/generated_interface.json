@@ -7,67 +7,16 @@
     },
     {
       "name": "group_02",
-      "label": "角色信息",
-      "default_expand": true
-    },
-    {
-      "name": "group_03",
       "label": "日常任务",
       "default_expand": true
     },
     {
-      "name": "group_04",
+      "name": "group_03",
       "label": "后台辅助",
       "default_expand": true
     }
   ],
   "task": [
-    {
-      "name": "open_miniprogram_panel",
-      "label": "打开微信小程序面板",
-      "entry": "MXU执行外部用例",
-      "default_check": true,
-      "description": "如果游戏未打开，则从微信左侧工具栏打开小程序面板",
-      "group": [
-        "group_01"
-      ],
-      "controller": [
-        "WeChatOrGame"
-      ],
-      "resource": [
-        "Default"
-      ],
-      "pipeline_override": {
-        "MXU执行外部用例": {
-          "custom_action_param": {
-            "case_id": "open_miniprogram_panel"
-          }
-        }
-      }
-    },
-    {
-      "name": "open_game",
-      "label": "打开九霄仙府",
-      "entry": "MXU执行外部用例",
-      "default_check": true,
-      "description": "点击入口并最长等待2分钟，直到九霄仙府游戏窗口出现",
-      "group": [
-        "group_01"
-      ],
-      "controller": [
-        "WeChatOrGame"
-      ],
-      "resource": [
-        "Default"
-      ],
-      "pipeline_override": {
-        "MXU执行外部用例": {
-          "custom_action_param": {
-            "case_id": "open_game"
-          }
-        }
-      }
-    },
     {
       "name": "close_face_popups",
       "label": "关闭拍脸弹窗",
@@ -92,82 +41,13 @@
       }
     },
     {
-      "name": "check_game_state",
-      "label": "确认游戏界面可操作",
-      "entry": "MXU执行外部用例",
-      "default_check": true,
-      "description": "识别主界面头像、聊天返回按钮或已经打开的宗门信息",
-      "group": [
-        "group_02"
-      ],
-      "controller": [
-        "WeChatOrGame"
-      ],
-      "resource": [
-        "Default"
-      ],
-      "pipeline_override": {
-        "MXU执行外部用例": {
-          "custom_action_param": {
-            "case_id": "check_game_state"
-          }
-        }
-      }
-    },
-    {
-      "name": "open_profile",
-      "label": "点击左上角头像",
-      "entry": "MXU执行外部用例",
-      "default_check": true,
-      "description": "必要时从聊天页返回主界面，识别并点击头像；已经打开时不重复点击",
-      "group": [
-        "group_02"
-      ],
-      "controller": [
-        "WeChatOrGame"
-      ],
-      "resource": [
-        "Default"
-      ],
-      "pipeline_override": {
-        "MXU执行外部用例": {
-          "custom_action_param": {
-            "case_id": "open_profile"
-          }
-        }
-      }
-    },
-    {
-      "name": "verify_profile",
-      "label": "验证宗门信息",
-      "entry": "MXU执行外部用例",
-      "default_check": true,
-      "description": "识别宗门信息面板，作为自动化用例的结果断言",
-      "group": [
-        "group_02"
-      ],
-      "controller": [
-        "WeChatOrGame"
-      ],
-      "resource": [
-        "Default"
-      ],
-      "pipeline_override": {
-        "MXU执行外部用例": {
-          "custom_action_param": {
-            "case_id": "verify_profile"
-          }
-        }
-      }
-    },
-    {
       "name": "auto_radar",
       "label": "自动雷达",
       "entry": "MXU执行外部用例",
       "default_check": false,
-      "description": "返回内城并进入执事堂，优先领取和一键执行，再逐个处理雷达事件",
+      "description": "从内城或大世界进入执事堂，优先领取和一键执行，再逐个处理雷达事件",
       "group": [
-        "group_03"
+        "group_02"
       ],
       "controller": [
         "WeChatOrGame"
@@ -190,7 +70,7 @@
       "default_check": false,
       "description": "循环治疗伤兵：单次时间刚超过30分钟，仙盟互助后等待完成并自动收取",
       "group": [
-        "group_03"
+        "group_02"
       ],
       "controller": [
         "WeChatOrGame"
@@ -213,7 +93,7 @@
       "default_check": false,
       "description": "启动独立后台监视：按钮每次出现只点击一次，其他用例执行期间自动暂停",
       "group": [
-        "group_04"
+        "group_03"
       ],
       "controller": [
         "WeChatOrGame"
