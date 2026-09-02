@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 
 from cases.auto_treatment.auto_treatment import (
@@ -44,9 +45,60 @@ def _adjust_and_start_treatment(
             if not _time_exceeds_target(engine, recognition_timeout, target_seconds):
                 break
 
-    # 从第一行开始逐个增加；一行拉满后自动转到下一行。
+    # 从第一行开始增加。先用一次点击测量该行单个弟子增加的时长，
+    # 距离目标较远时按差值批量快点，随后再用 OCR 校准。
     if not _time_reaches_target(engine, recognition_timeout, target_seconds):
         for row in rows:
+            current_seconds = _read_treatment_seconds(engine, controller)
+            if current_seconds is not None and current_seconds < target_seconds:
+                if adjustments >= max_adjustments:
+                    raise RuntimeError("自动治疗调整次数超过安全上限")
+                adjustments += 1
+                changed = _click_and_detect_change(
+                    controller, row, row.plus_x, click_delay
+                )
+                after_probe = _read_treatment_seconds(engine, controller)
+                if (
+                    changed
+                    and after_probe is not None
+                    and after_probe > current_seconds
+                    and after_probe < target_seconds
+                ):
+                    seconds_per_click = after_probe - current_seconds
+                    measured_seconds = after_probe
+                    row_exhausted = False
+                    while measured_seconds < target_seconds:
+                        estimated_clicks = math.ceil(
+                            (target_seconds - measured_seconds) / seconds_per_click
+                        )
+                        burst_clicks = min(
+                            estimated_clicks,
+                            max_adjustments - adjustments,
+                            100,
+                        )
+                        if burst_clicks <= 0:
+                            raise RuntimeError("自动治疗调整次数超过安全上限")
+                        for _ in range(burst_clicks):
+                            if not controller.post_click(row.plus_x, row.y).wait().succeeded:
+                                raise RuntimeError(
+                                    f"自动治疗快速点击失败：({row.plus_x}, {row.y})"
+                                )
+                            adjustments += 1
+                            time.sleep(0.03)
+                        time.sleep(max(0.2, click_delay))
+                        calibrated_seconds = _read_treatment_seconds(
+                            engine, controller
+                        )
+                        if calibrated_seconds is None:
+                            break
+                        if calibrated_seconds <= measured_seconds:
+                            row_exhausted = True
+                            break
+                        measured_seconds = calibrated_seconds
+                    if row_exhausted:
+                        continue
+
+            # OCR 估算可能遇到按钮已拉满或少量点击未生效，保留原逻辑兜底。
             while not _time_reaches_target(
                 engine, recognition_timeout, target_seconds
             ):

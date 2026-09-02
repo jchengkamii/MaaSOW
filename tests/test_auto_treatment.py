@@ -243,6 +243,49 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertEqual((0, True, 1800), result)
         click.assert_not_called()
 
+    def test_far_from_target_uses_ocr_estimate_for_burst_clicks(self):
+        class ClickJob:
+            succeeded = True
+
+            def wait(self):
+                return self
+
+        class Controller:
+            clicks = 0
+
+            def post_click(self, _x, _y):
+                self.clicks += 1
+                return ClickJob()
+
+        controller = Controller()
+        row = type("Row", (), {"minus_x": 100, "plus_x": 500, "y": 650})()
+        times = iter((600, 660, 1800, 1800))
+
+        with (
+            patch.object(auto_treatment_cycle, "detect_treatment_rows", return_value=[row]),
+            patch.object(auto_treatment_cycle, "_screenshot", return_value=np.zeros((1, 1, 3))),
+            patch.object(auto_treatment_cycle, "_time_exceeds_target", return_value=False),
+            patch.object(
+                auto_treatment_cycle,
+                "_time_reaches_target",
+                side_effect=(False, True, True, True),
+            ),
+            patch.object(
+                auto_treatment_cycle,
+                "_read_treatment_seconds",
+                side_effect=lambda *_args: next(times),
+            ),
+            patch.object(auto_treatment_cycle, "_click_and_detect_change", return_value=True),
+            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(auto_treatment_cycle.time, "sleep", return_value=None),
+        ):
+            adjustments, reached, seconds = auto_treatment_cycle._adjust_and_start_treatment(
+                object(), controller, 1800, 0.4, 1.5, 2000
+            )
+
+        self.assertEqual(19, controller.clicks)
+        self.assertEqual((20, True, 1800), (adjustments, reached, seconds))
+
 
 if __name__ == "__main__":
     unittest.main()
