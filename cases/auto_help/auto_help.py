@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -10,7 +11,6 @@ from cases.auto_help.auto_help_process import (
     process_record_is_running,
     read_process_record,
     terminate_recorded_process,
-    write_process_record,
 )
 
 
@@ -70,9 +70,25 @@ def run(_engine, case) -> str:
             startupinfo=startupinfo,
             close_fds=True,
         )
-    # 虚拟环境启动器可能会转交给另一个解释器进程；工作进程若已登记实际
-    # PID，此处不能再用启动器 PID 覆盖它。
-    current = read_process_record(PID_PATH)
-    if current is None or current.get("token") != launch_token:
-        write_process_record(PID_PATH, process.pid, launch_token)
-    return f"自动帮助后台监视已启动，pid={process.pid}"
+    # 等 worker 自己登记实际 PID。不能立即写入 Popen.pid：Windows 虚拟
+    # 环境的 python.exe 可能只是启动器，记录它会导致停止时留下真正的
+    # 解释器子进程。
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        current = read_process_record(PID_PATH)
+        if (
+            current is not None
+            and current.get("token") == launch_token
+            and process_record_is_running(current)
+        ):
+            return f"自动帮助后台监视已启动，pid={int(current['pid'])}"
+        if process.poll() is not None:
+            raise RuntimeError(
+                f"自动帮助后台进程启动失败，退出码={process.returncode}；"
+                f"请查看 {LOG_PATH}"
+            )
+        time.sleep(0.05)
+
+    if process.poll() is None:
+        process.terminate()
+    raise RuntimeError(f"自动帮助后台进程未能登记 PID；请查看 {LOG_PATH}")

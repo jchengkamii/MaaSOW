@@ -41,7 +41,8 @@ mxu_agent.py                           MXU AgentServer 自定义动作
 case_worker.py                         独立 case 工作进程
 sync_mxu_interface.py                  cases -> MXU 任务卡片转换器
 cases/<case_id>/<case_id>.json         外部用例定义
-cases/auto_help/*.py                   自动帮助后台逻辑
+cases/auto_help/*.py                   自动帮助后台启动与监视逻辑
+cases/stop_auto_help/*.py              自动帮助后台停止逻辑
 resource/pipeline/<case_id>.json       按 case 拆分的 Maa Pipeline
 resource/image/**                      图像识别模板
 tests/**                               配置与集成测试
@@ -67,7 +68,8 @@ tests/**                               配置与集成测试
 - 每张任务卡片通过 `RunConfiguredCase` 交给 `mxu_agent.py`。
 - Agent 按 case 需要连接微信主窗口、小程序面板或游戏窗口。
 - “关闭拍脸弹窗”最多处理三轮弹窗，并使用内城左右特征断言主界面。
-- “自动帮助”在独立隐藏进程中循环识别，普通 case 执行时自动暂停。
+- 使用“▶ 开启自动帮助”启动独立隐藏进程循环识别，普通 case 执行时自动暂停。
+- 使用“■ 停止自动帮助”安全校验并关闭后台进程；重复停止不会报错。
 - Maa 默认不保存识别绘制图和失败截图。
 
 ## 开发与测试

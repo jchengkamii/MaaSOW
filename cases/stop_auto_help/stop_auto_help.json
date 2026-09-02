@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "stop_auto_help",
+  "name": "■ 停止自动帮助",
+  "group": "后台辅助",
+  "description": "停止由“开启自动帮助”启动的后台监视进程",
+  "order": 71,
+  "default_checked": false,
+  "enabled": true,
+  "handler": "python",
+  "extension": "cases.stop_auto_help.stop_auto_help:run"
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import subprocess
 import time
 from pathlib import Path
 
@@ -84,7 +85,7 @@ def write_process_record(path: Path, pid: int, token: str) -> dict[str, object]:
     return record
 
 
-def _record_matches_process(record: dict[str, object] | None) -> bool:
+def process_record_matches_process(record: dict[str, object] | None) -> bool:
     if record is None:
         return False
     return process_creation_time(int(record["pid"])) == int(record["created"])
@@ -94,7 +95,7 @@ def process_record_is_running(
     record: dict[str, object] | None,
     heartbeat_timeout: float = HEARTBEAT_TIMEOUT,
 ) -> bool:
-    if not _record_matches_process(record):
+    if not process_record_matches_process(record):
         return False
     return time.time() - float(record["heartbeat"]) <= heartbeat_timeout
 
@@ -102,7 +103,7 @@ def process_record_is_running(
 def touch_process_record(path: Path, pid: int, token: str) -> None:
     record = read_process_record(path)
     if (
-        not _record_matches_process(record)
+        not process_record_matches_process(record)
         or int(record["pid"]) != pid
         or record["token"] != token
     ):
@@ -112,10 +113,28 @@ def touch_process_record(path: Path, pid: int, token: str) -> None:
 
 
 def terminate_recorded_process(record: dict[str, object] | None) -> bool:
-    if os.name != "nt" or not _record_matches_process(record):
+    if os.name != "nt" or not process_record_matches_process(record):
         return False
+    pid = int(record["pid"])
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        completed = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+            check=False,
+        )
+        if completed.returncode == 0 or not process_record_matches_process(record):
+            return True
+    except OSError:
+        pass
+
+    # taskkill 不可用时回退到 Win32 API。正常情况下 PID 记录的是实际
+    # worker；这个回退仍能保证记录匹配后才终止，避免误伤复用 PID。
     process = ctypes.windll.kernel32.OpenProcess(
-        PROCESS_TERMINATE, False, int(record["pid"])
+        PROCESS_TERMINATE, False, pid
     )
     if not process:
         return False
@@ -123,3 +142,15 @@ def terminate_recorded_process(record: dict[str, object] | None) -> bool:
         return bool(ctypes.windll.kernel32.TerminateProcess(process, 1))
     finally:
         ctypes.windll.kernel32.CloseHandle(process)
+
+
+def wait_for_recorded_process_exit(
+    record: dict[str, object] | None, timeout: float = 3.0
+) -> bool:
+    """等待记录对应的进程退出，并持续校验创建时间以防 PID 复用。"""
+    deadline = time.monotonic() + max(0.0, timeout)
+    while process_record_matches_process(record):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True

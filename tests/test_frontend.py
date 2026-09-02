@@ -22,7 +22,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(4, len(cases))
+        self.assertEqual(5, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -61,7 +61,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_case_directory_contains_only_expected_active_json(self):
         active = sorted(CASES_DIR.rglob("*.json"))
-        self.assertEqual(4, len(active))
+        self.assertEqual(5, len(active))
         self.assertFalse(list(CASES_DIR.glob("*.json")))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -144,6 +144,23 @@ class FrontendConfigurationTests(unittest.TestCase):
         self.assertEqual(detect["template"], click["template"])
         self.assertEqual("Click", click["action"])
         self.assertTrue((RESOURCE_DIR / "image" / detect["template"]).is_file())
+
+    def test_auto_help_has_a_matching_stop_case(self):
+        cases = {case.id: case for case in CaseLoader().load()}
+        start_case = cases["auto_help"]
+        stop_case = cases["stop_auto_help"]
+        self.assertEqual("▶ 开启自动帮助", start_case.name)
+        self.assertEqual("■ 停止自动帮助", stop_case.name)
+        self.assertEqual("后台辅助", stop_case.group)
+        self.assertGreater(stop_case.order, start_case.order)
+        self.assertEqual("python", stop_case.handler)
+        self.assertEqual(
+            "cases.stop_auto_help.stop_auto_help:run", stop_case.extension
+        )
+        self.assertFalse(stop_case.default_checked)
+        self.assertTrue(
+            (CASES_DIR / "stop_auto_help" / "stop_auto_help.py").is_file()
+        )
 
     def test_auto_radar_prioritizes_bulk_actions_and_bounds_automation(self):
         case = next(case for case in CaseLoader().load() if case.id == "auto_radar")

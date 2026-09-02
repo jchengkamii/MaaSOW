@@ -88,10 +88,10 @@
     },
     {
       "name": "auto_help",
-      "label": "自动帮助",
+      "label": "▶ 开启自动帮助",
       "entry": "MXU执行外部用例",
       "default_check": false,
-      "description": "启动独立后台监视：按钮每次出现只点击一次，其他用例执行期间自动暂停",
+      "description": "启动独立后台监视；按钮每次出现只点击一次，其他用例执行期间自动暂停",
       "group": [
         "group_03"
       ],
@@ -105,6 +105,29 @@
         "MXU执行外部用例": {
           "custom_action_param": {
             "case_id": "auto_help"
+          }
+        }
+      }
+    },
+    {
+      "name": "stop_auto_help",
+      "label": "■ 停止自动帮助",
+      "entry": "MXU执行外部用例",
+      "default_check": false,
+      "description": "停止由“开启自动帮助”启动的后台监视进程",
+      "group": [
+        "group_03"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ],
+      "resource": [
+        "Default"
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "stop_auto_help"
           }
         }
       }
