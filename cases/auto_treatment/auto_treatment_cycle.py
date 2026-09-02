@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import time
 
+from cases.auto_help.automation_mutex import AutomationMutex
 from cases.auto_treatment.auto_treatment import (
     _click_and_detect_change,
     _run_pipeline,
@@ -197,102 +198,96 @@ def run(engine, case) -> str:
     active_treatment = False
 
     # 最优先判断愈灵斋；若已处于治疗中，直接续接互助和关闭流程。
-    if _run_pipeline(engine, "自动治疗确认治疗界面", recognition_timeout):
-        if _run_pipeline(engine, "自动治疗确认治疗进行中", recognition_timeout):
-            active_treatment = True
-            _request_help_and_close(
-                engine, recognition_timeout, require_help=False
-            )
-        else:
-            adjustments, previous_treatment_seconds, reused = _adjust_or_reuse_and_start_treatment(
-                engine,
-                controller,
-                target_seconds,
-                click_delay,
-                recognition_timeout,
-                max_adjustments,
-                previous_treatment_seconds,
-            )
-            total_adjustments += adjustments
-            treatment_batches += 1
-            reused_batches += int(reused)
-            active_treatment = True
-            _request_help_and_close(engine, recognition_timeout, require_help=True)
-    elif not _run_pipeline(engine, "自动治疗返回主城或大世界", 45.0):
-        raise RuntimeError("无法返回主城或大世界")
+    # 初始导航和界面操作保持原子性，避免自动帮助在中间插入点击。
+    with AutomationMutex():
+        if _run_pipeline(engine, "自动治疗确认治疗界面", recognition_timeout):
+            if _run_pipeline(engine, "自动治疗确认治疗进行中", recognition_timeout):
+                active_treatment = True
+                _request_help_and_close(
+                    engine, recognition_timeout, require_help=False
+                )
+            else:
+                adjustments, previous_treatment_seconds, reused = _adjust_or_reuse_and_start_treatment(
+                    engine,
+                    controller,
+                    target_seconds,
+                    click_delay,
+                    recognition_timeout,
+                    max_adjustments,
+                    previous_treatment_seconds,
+                )
+                total_adjustments += adjustments
+                treatment_batches += 1
+                reused_batches += int(reused)
+                active_treatment = True
+                _request_help_and_close(engine, recognition_timeout, require_help=True)
+        elif not _run_pipeline(engine, "自动治疗返回主城或大世界", 45.0):
+            raise RuntimeError("无法返回主城或大世界")
 
     empty_hits = 0
     waiting_logged = False
     while True:
         if engine.stop_event.is_set():
             raise InterruptedError("用户停止执行")
-
-        # 治疗完成图标优先处理，收取后立即重新判断。
-        if _run_pipeline(engine, "自动治疗收取治疗完成", recognition_timeout):
-            active_treatment = False
-            empty_hits = 0
-            waiting_logged = False
-            _wait_or_stop(engine, click_delay)
-            continue
-
-        # 红色十字表示仍有伤兵，开始下一批治疗。
-        if _run_pipeline(engine, "自动治疗点击治疗入口", recognition_timeout):
-            empty_hits = 0
-            waiting_logged = False
-            if not _run_pipeline(engine, "自动治疗等待治疗界面", 12.0):
-                raise RuntimeError("点击治疗入口后没有进入愈灵斋")
-            adjustments, previous_treatment_seconds, reused = _adjust_or_reuse_and_start_treatment(
-                engine,
-                controller,
-                target_seconds,
-                click_delay,
-                recognition_timeout,
-                max_adjustments,
-                previous_treatment_seconds,
-            )
-            total_adjustments += adjustments
-            treatment_batches += 1
-            reused_batches += int(reused)
-            active_treatment = True
-            _request_help_and_close(engine, recognition_timeout, require_help=True)
-            continue
-
-        # 绿色十字表示治疗尚未结束，保持任务运行并定时复查。
-        if _run_pipeline(engine, "自动治疗确认正在治疗图标", recognition_timeout):
-            active_treatment = True
-            empty_hits = 0
-            if not waiting_logged:
-                engine.log("弟子正在治疗中，等待治疗完成……")
-                waiting_logged = True
-            _wait_or_stop(engine, poll_interval)
-            continue
-
-        # 已开始的治疗尚未明确收取时，短暂识别不到任何状态图标只能等待，
-        # 不能把它当成“所有治疗已完成”。
-        if active_treatment:
-            empty_hits = 0
-            if not waiting_logged:
-                engine.log("治疗状态图标暂未识别，继续等待治疗完成……")
-                waiting_logged = True
-            _wait_or_stop(engine, poll_interval)
-            continue
-
-        # 无治疗批次待收取时，也必须确认当前确实位于主城或大世界，
-        # 避免加载动画、弹窗或其他界面造成三个模板同时漏识别。
-        on_main_screen = _run_pipeline(
-            engine, "自动治疗确认内城", recognition_timeout
-        ) or _run_pipeline(engine, "自动治疗确认大世界", recognition_timeout)
-        if not on_main_screen:
-            empty_hits = 0
-            _wait_or_stop(engine, min(2.0, poll_interval))
-            continue
-
-        # 防止界面切换的一帧空白导致提前结束，连续多次无图标才算完成。
-        empty_hits += 1
-        if empty_hits >= empty_confirmations:
-            return (
-                "自动治疗完成；"
-                f"共开始 {treatment_batches} 批治疗，调整弟子数量 {total_adjustments} 次，"
-                f"沿用上次治疗数量 {reused_batches} 批"
-            )
-        _wait_or_stop(engine, min(2.0, poll_interval))
+        wait_seconds = 0.0
+        # 每轮状态判断及其后续点击作为一个短原子操作；退出 with 后立刻
+        # 释放跨进程锁，治疗等待期间自动帮助即可继续识别和点击。
+        with AutomationMutex():
+            if _run_pipeline(engine, "自动治疗收取治疗完成", recognition_timeout):
+                active_treatment = False
+                empty_hits = 0
+                waiting_logged = False
+                wait_seconds = click_delay
+            elif _run_pipeline(engine, "自动治疗点击治疗入口", recognition_timeout):
+                empty_hits = 0
+                waiting_logged = False
+                if not _run_pipeline(engine, "自动治疗等待治疗界面", 12.0):
+                    raise RuntimeError("点击治疗入口后没有进入愈灵斋")
+                adjustments, previous_treatment_seconds, reused = _adjust_or_reuse_and_start_treatment(
+                    engine,
+                    controller,
+                    target_seconds,
+                    click_delay,
+                    recognition_timeout,
+                    max_adjustments,
+                    previous_treatment_seconds,
+                )
+                total_adjustments += adjustments
+                treatment_batches += 1
+                reused_batches += int(reused)
+                active_treatment = True
+                _request_help_and_close(engine, recognition_timeout, require_help=True)
+            elif _run_pipeline(engine, "自动治疗确认正在治疗图标", recognition_timeout):
+                active_treatment = True
+                empty_hits = 0
+                if not waiting_logged:
+                    engine.log("弟子正在治疗中，等待治疗完成……")
+                    waiting_logged = True
+                wait_seconds = poll_interval
+            elif active_treatment:
+                empty_hits = 0
+                if not waiting_logged:
+                    engine.log("治疗状态图标暂未识别，继续等待治疗完成……")
+                    waiting_logged = True
+                wait_seconds = poll_interval
+            else:
+                on_main_screen = _run_pipeline(
+                    engine, "自动治疗确认内城", recognition_timeout
+                ) or _run_pipeline(
+                    engine, "自动治疗确认大世界", recognition_timeout
+                )
+                if not on_main_screen:
+                    empty_hits = 0
+                    wait_seconds = min(2.0, poll_interval)
+                else:
+                    empty_hits += 1
+                    if empty_hits >= empty_confirmations:
+                        return (
+                            "自动治疗完成；"
+                            f"共开始 {treatment_batches} 批治疗，"
+                            f"调整弟子数量 {total_adjustments} 次，"
+                            f"沿用上次治疗数量 {reused_batches} 批"
+                        )
+                    wait_seconds = min(2.0, poll_interval)
+        if wait_seconds > 0:
+            _wait_or_stop(engine, wait_seconds)

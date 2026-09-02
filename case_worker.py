@@ -31,8 +31,13 @@ def execute(case_id: str) -> int:
             log=lambda message: print(f"[Worker] {message}", flush=True)
         )
         engine.reset_stop()
-        with AutomationMutex():
+        # 长驻协作用例会在真正操作游戏时自行加锁，并在等待阶段释放锁，
+        # 让自动帮助等后台任务获得执行窗口。
+        if bool((case.parameters or {}).get("cooperative_mutex", False)):
             result = engine.execute_case(case)
+        else:
+            with AutomationMutex():
+                result = engine.execute_case(case)
         payload: dict[str, object] = {
             "case_id": case.id,
             "name": case.name,

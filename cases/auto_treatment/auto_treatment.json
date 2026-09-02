@@ -15,6 +15,7 @@
     "recognition_timeout": 1.5,
     "max_adjustments": 2000,
     "poll_interval": 10.0,
-    "empty_confirmations": 3
+    "empty_confirmations": 3,
+    "cooperative_mutex": true
   }
 }
