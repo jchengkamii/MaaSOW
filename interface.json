@@ -3,6 +3,7 @@
   "name": "MaaJiuxiaoTest",
   "label": "九霄仙府自动化测试",
   "title": "九霄仙府自动化测试 · MXU",
+  "icon": "resource/app_icon.png",
   "version": "1.0.0",
   "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。",
   "welcome": "mxu/WELCOME.md",

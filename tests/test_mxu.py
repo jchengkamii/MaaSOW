@@ -12,6 +12,8 @@ class MxuIntegrationTests(unittest.TestCase):
     def test_interface_is_project_interface_v2(self):
         interface = json.loads((PROJECT_DIR / "interface.json").read_text(encoding="utf-8"))
         self.assertEqual(2, interface["interface_version"])
+        self.assertEqual("resource/app_icon.png", interface["icon"])
+        self.assertTrue((PROJECT_DIR / interface["icon"]).is_file())
         self.assertEqual("Win32", interface["controller"][0]["type"])
         self.assertEqual("^九霄仙府$", interface["controller"][0]["win32"]["window_regex"])
         self.assertEqual(
