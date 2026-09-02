@@ -184,6 +184,29 @@
       }
     },
     {
+      "name": "auto_treatment",
+      "label": "自动治疗",
+      "entry": "MXU执行外部用例",
+      "default_check": false,
+      "description": "循环治疗伤兵：单次时间刚超过30分钟，仙盟互助后等待完成并自动收取",
+      "group": [
+        "group_03"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ],
+      "resource": [
+        "Default"
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_treatment"
+          }
+        }
+      }
+    },
+    {
       "name": "auto_help",
       "label": "自动帮助",
       "entry": "MXU执行外部用例",

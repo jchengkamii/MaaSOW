@@ -1,0 +1,281 @@
+{
+  "自动治疗确认治疗界面": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_title.png",
+    "threshold": 0.66,
+    "roi": [
+      230,
+      110,
+      260,
+      120
+    ]
+  },
+  "自动治疗返回主城或大世界": {
+    "next": [
+      "自动治疗确认内城",
+      "自动治疗确认大世界",
+      "自动治疗点击黄色返回",
+      "自动治疗点击蓝色返回"
+    ],
+    "rate_limit": 500,
+    "timeout": 45000
+  },
+  "自动治疗确认内城": {
+    "recognition": "And",
+    "all_of": [
+      "内城主界面左下特征",
+      "内城主界面右下特征"
+    ],
+    "box_index": 0
+  },
+  "自动治疗确认大世界": {
+    "recognition": "And",
+    "all_of": [
+      "内城主界面左下特征",
+      {
+        "recognition": "TemplateMatch",
+        "template": "game/auto_radar/return_sect_runtime.png",
+        "threshold": 0.68,
+        "roi": [
+          560,
+          -100,
+          160,
+          100
+        ]
+      }
+    ],
+    "box_index": 0
+  },
+  "自动治疗点击黄色返回": {
+    "recognition": "TemplateMatch",
+    "template": [
+      "game/auto_radar/return_yellow_reference.png",
+      "game/auto_radar/return_yellow_runtime.png"
+    ],
+    "threshold": [
+      0.68,
+      0.68
+    ],
+    "roi": [
+      0,
+      -180,
+      160,
+      180
+    ],
+    "action": "Click",
+    "post_delay": 1000,
+    "max_hit": 6,
+    "next": [
+      "自动治疗返回主城或大世界"
+    ]
+  },
+  "自动治疗点击蓝色返回": {
+    "recognition": "TemplateMatch",
+    "template": [
+      "game/auto_radar/return_blue_reference.png",
+      "game/auto_radar/return_blue_runtime.png"
+    ],
+    "threshold": [
+      0.68,
+      0.68
+    ],
+    "roi": [
+      0,
+      -180,
+      160,
+      180
+    ],
+    "action": "Click",
+    "post_delay": 1000,
+    "max_hit": 6,
+    "next": [
+      "自动治疗返回主城或大世界"
+    ]
+  },
+  "自动治疗点击治疗入口": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_entry.png",
+    "threshold": 0.68,
+    "roi": [
+      70,
+      880,
+      150,
+      220
+    ],
+    "action": "Click",
+    "post_delay": 700
+  },
+  "自动治疗等待治疗界面": {
+    "next": [
+      "自动治疗确认治疗界面"
+    ],
+    "rate_limit": 400,
+    "timeout": 12000
+  },
+  "自动治疗时间超过30分钟": {
+    "recognition": "OCR",
+    "roi": [
+      455,
+      1150,
+      175,
+      50
+    ],
+    "expected": "^(?:0*[1-9]\\d*:[0-5]\\d:[0-5]\\d|0*:3[1-9]:[0-5]\\d|0*:30:(?:0[1-9]|[1-5]\\d)|0*:[4-5]\\d:[0-5]\\d)$",
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ],
+      [
+        "I",
+        "1"
+      ],
+      [
+        "l",
+        "1"
+      ],
+      [
+        "：",
+        ":"
+      ],
+      [
+        ";",
+        ":"
+      ]
+    ],
+    "only_rec": true,
+    "threshold": 0.2
+  },
+  "自动治疗时间达到30分钟": {
+    "recognition": "OCR",
+    "roi": [
+      455,
+      1150,
+      175,
+      50
+    ],
+    "expected": "^(?:0*[1-9]\\d*:[0-5]\\d:[0-5]\\d|0*:3[0-9]:[0-5]\\d|0*:[4-5]\\d:[0-5]\\d)$",
+    "replace": [
+      ["O", "0"],
+      ["o", "0"],
+      ["I", "1"],
+      ["l", "1"],
+      ["：", ":"],
+      [";", ":"]
+    ],
+    "only_rec": true,
+    "threshold": 0.2
+  },
+  "自动治疗读取时间": {
+    "recognition": "OCR",
+    "roi": [
+      455,
+      1150,
+      175,
+      50
+    ],
+    "expected": "^\\d{1,3}:[0-5]\\d:[0-5]\\d$",
+    "replace": [
+      ["O", "0"],
+      ["o", "0"],
+      ["I", "1"],
+      ["l", "1"],
+      ["：", ":"],
+      [";", ":"]
+    ],
+    "only_rec": true,
+    "threshold": 0.2
+  },
+  "自动治疗点击治疗按钮": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treat_button.png",
+    "threshold": 0.66,
+    "roi": [
+      360,
+      1060,
+      310,
+      180
+    ],
+    "action": "Click",
+    "post_delay": 800
+  },
+  "自动治疗确认治疗进行中": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_running.png",
+    "threshold": 0.66,
+    "roi": [
+      210,
+      940,
+      310,
+      180
+    ]
+  },
+  "自动治疗点击仙盟互助": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/alliance_help.png",
+    "threshold": 0.66,
+    "roi": [
+      340,
+      1050,
+      340,
+      190
+    ],
+    "action": "Click",
+    "post_delay": 700
+  },
+  "自动治疗关闭治疗界面": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_close.png",
+    "threshold": 0.68,
+    "roi": [
+      600,
+      100,
+      120,
+      140
+    ],
+    "action": "Click",
+    "target": [
+      662,
+      163,
+      8,
+      8
+    ],
+    "post_delay": 700
+  },
+  "自动治疗等待返回主界面": {
+    "next": [
+      "自动治疗确认内城",
+      "自动治疗确认大世界"
+    ],
+    "rate_limit": 400,
+    "timeout": 10000
+  },
+  "自动治疗确认正在治疗图标": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_in_progress.png",
+    "threshold": 0.68,
+    "roi": [
+      70,
+      880,
+      150,
+      220
+    ]
+  },
+  "自动治疗收取治疗完成": {
+    "recognition": "TemplateMatch",
+    "template": "game/auto_treatment/treatment_complete.png",
+    "threshold": 0.68,
+    "roi": [
+      70,
+      880,
+      150,
+      220
+    ],
+    "action": "Click",
+    "post_delay": 700
+  }
+}

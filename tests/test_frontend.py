@@ -22,7 +22,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(8, len(cases))
+        self.assertEqual(9, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -39,6 +39,7 @@ class FrontendConfigurationTests(unittest.TestCase):
         expected = {
             "auto_help.json",
             "auto_radar.json",
+            "auto_treatment.json",
             "check_game_state.json",
             "close_face_popups.json",
             "mxu.json",
@@ -64,7 +65,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_case_directory_contains_only_expected_active_json(self):
         active = sorted(CASES_DIR.rglob("*.json"))
-        self.assertEqual(8, len(active))
+        self.assertEqual(9, len(active))
         self.assertFalse(list(CASES_DIR.glob("*.json")))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
