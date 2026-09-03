@@ -47,6 +47,7 @@ class CaseDefinition:
     default_checked: bool
     enabled: bool
     handler: str
+    auto_stamina: bool = False
     pipeline_entry: str | None = None
     controller_target: str | None = None
     wait_for_window: str | None = None
@@ -154,6 +155,7 @@ class CaseLoader:
                     default_checked=bool(data.get("default_checked", False)),
                     enabled=bool(data.get("enabled", True)),
                     handler=handler,
+                    auto_stamina=bool(data.get("auto_stamina", False)),
                     pipeline_entry=(str(pipeline_entry) if pipeline_entry else None),
                     controller_target=(
                         str(controller_target) if controller_target else None
@@ -199,6 +201,7 @@ class AutomationEngine:
         self,
         log: LogCallback | None = None,
         framework_logging: bool = True,
+        auto_stamina: bool = False,
     ):
         self.log = log or (lambda _message: None)
         self.stop_event = threading.Event()
@@ -206,6 +209,7 @@ class AutomationEngine:
         self._current_tasker: Tasker | None = None
         self._resource: Resource | None = None
         self._controllers: dict[str, tuple[int, Win32Controller]] = {}
+        self.auto_stamina = auto_stamina
         Toolkit.init_option(
             PROJECT_DIR,
             {
@@ -408,11 +412,41 @@ class AutomationEngine:
             job = tasker.post_task(entry, pipeline_override).wait()
             if self.stop_event.is_set():
                 raise InterruptedError("用户停止执行")
-            if not job.succeeded:
-                raise RuntimeError(f"Maa Pipeline 执行失败：{entry}")
+            if (
+                self.auto_stamina
+                and target == "game"
+                and entry != "通用自动补体"
+                and self._try_auto_stamina(tasker)
+            ):
+                self.log("自动补体完成，重新执行原功能")
+                retry = tasker.post_task(entry, pipeline_override).wait()
+                if self.stop_event.is_set():
+                    raise InterruptedError("用户停止执行")
+                if retry.succeeded:
+                    return
+            if job.succeeded:
+                return
+            raise RuntimeError(f"Maa Pipeline 执行失败：{entry}")
         finally:
             with self._state_lock:
                 self._current_tasker = None
+
+    def _try_auto_stamina(self, tasker: Tasker) -> bool:
+        self.log("检查是否出现行军体力不足提示……")
+        flow = tasker.post_task("通用自动补体").wait()
+        if self.stop_event.is_set():
+            raise InterruptedError("用户停止执行")
+        if not flow.succeeded:
+            self.log("未检测到可处理的补充体力界面")
+            return False
+
+        still_insufficient = tasker.post_task("通用识别补充体力按钮").wait()
+        if self.stop_event.is_set():
+            raise InterruptedError("用户停止执行")
+        if still_insufficient.succeeded:
+            self.log("没有可领取的免费体力，已关闭补体界面")
+            return False
+        return True
 
 
     def _run_python_extension(self, case: CaseDefinition) -> str:

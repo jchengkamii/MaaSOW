@@ -37,7 +37,19 @@ def parse_case_id(raw: str) -> str:
 
 
 def worker_command(case_id: str) -> list[str]:
-    return [sys.executable, "-u", "-m", "agent.worker", "--case-id", case_id]
+    return worker_command_with_options(case_id, auto_stamina=False)
+
+
+def worker_command_with_options(case_id: str, auto_stamina: bool) -> list[str]:
+    command = [sys.executable, "-u", "-m", "agent.worker", "--case-id", case_id]
+    if auto_stamina:
+        command.append("--auto-stamina")
+    return command
+
+
+def auto_stamina_enabled(context: Context) -> bool:
+    node = context.get_node_data("通用自动补体开关") or {}
+    return node.get("enabled") is True
 
 
 def _stop_process(process: subprocess.Popen[str]) -> None:
@@ -60,17 +72,20 @@ class RunConfiguredCase(CustomAction):
             print(f"[Agent] 用例参数错误：{exc}", flush=True)
             return False
 
+        use_auto_stamina = auto_stamina_enabled(context)
+
         if not WORKER_SCRIPT.is_file():
             print(f"[Agent] 找不到用例工作进程脚本：{WORKER_SCRIPT}", flush=True)
             return False
 
-        print(f"[Agent] 提交独立工作进程：{case_id}", flush=True)
+        suffix = "（自动补体已启用）" if use_auto_stamina else ""
+        print(f"[Agent] 提交独立工作进程：{case_id}{suffix}", flush=True)
         environment = os.environ.copy()
         environment["PYTHONUTF8"] = "1"
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         try:
             process = subprocess.Popen(
-                worker_command(case_id),
+                worker_command_with_options(case_id, use_auto_stamina),
                 cwd=PROJECT_DIR,
                 env=environment,
                 stdout=subprocess.PIPE,

@@ -47,6 +47,7 @@ class FrontendConfigurationTests(unittest.TestCase):
             "AutoRadar/AutoRadar.json",
             "AutoTreatment/AutoTreatment.json",
             "CloseFacePopups/CloseFacePopups.json",
+            "Common/AutoStamina.json",
             "Common/Scene/InnerCity.json",
             "Interface/RunConfiguredCase.json",
         }

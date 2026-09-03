@@ -6,5 +6,9 @@
     "custom_action_param": {
       "case_id": ""
     }
+  },
+  "通用自动补体开关": {
+    "recognition": "DirectHit",
+    "enabled": false
   }
 }

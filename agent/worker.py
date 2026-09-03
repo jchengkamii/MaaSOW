@@ -18,7 +18,7 @@ def _emit_result(payload: dict[str, object]) -> None:
     )
 
 
-def execute(case_id: str) -> int:
+def execute(case_id: str, auto_stamina: bool = False) -> int:
     started = time.monotonic()
     try:
         cases = {case.id: case for case in CaseLoader().load()}
@@ -28,7 +28,8 @@ def execute(case_id: str) -> int:
 
         print(f"[Worker] 开始执行：{case.name}", flush=True)
         engine = AutomationEngine(
-            log=lambda message: print(f"[Worker] {message}", flush=True)
+            log=lambda message: print(f"[Worker] {message}", flush=True),
+            auto_stamina=auto_stamina,
         )
         engine.reset_stop()
         # 长驻协作用例会在真正操作游戏时自行加锁，并在等待阶段释放锁，
@@ -61,8 +62,13 @@ def execute(case_id: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="在独立 MaaFramework 进程中执行一个用例")
     parser.add_argument("--case-id", required=True, help="cases 目录中的用例 ID")
+    parser.add_argument(
+        "--auto-stamina",
+        action="store_true",
+        help="行军体力不足时执行通用自动补体流程",
+    )
     args = parser.parse_args()
-    return execute(args.case_id.strip())
+    return execute(args.case_id.strip(), auto_stamina=args.auto_stamina)
 
 
 if __name__ == "__main__":

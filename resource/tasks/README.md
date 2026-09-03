@@ -6,3 +6,6 @@ ProjectInterface V2 任务卡片。
 
 简单任务使用 `handler: "pipeline"`，复杂业务使用 `handler: "python"` 并通过
 `extension` 指向 `agent/custom/action/` 中的 `module:function`。
+
+只有会发起行军且需要展示自动补体开关的任务才设置
+`"auto_stamina": true`；未设置时 MXU 任务展开项不会显示该复选项。

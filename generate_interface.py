@@ -6,6 +6,7 @@ from pathlib import Path
 from agent.core import CaseLoader, PROJECT_DIR
 
 OUTPUT = PROJECT_DIR / "resource" / "interface.tasks.json"
+AUTO_STAMINA_OPTION = "自动补体"
 
 
 def generate() -> dict:
@@ -26,24 +27,47 @@ def generate() -> dict:
 
     tasks = []
     for case in cases:
-        tasks.append(
-            {
-                "name": case.id,
-                "label": case.name,
-                "entry": "MXU执行外部用例",
-                "default_check": case.default_checked,
-                "description": case.description,
-                "group": [group_ids[case.group]],
-                "controller": ["WeChatOrGame"],
-                "resource": ["Default"],
-                "pipeline_override": {
-                    "MXU执行外部用例": {
-                        "custom_action_param": {"case_id": case.id}
+        task = {
+            "name": case.id,
+            "label": case.name,
+            "entry": "MXU执行外部用例",
+            "default_check": case.default_checked,
+            "description": case.description,
+            "group": [group_ids[case.group]],
+            "controller": ["WeChatOrGame"],
+            "resource": ["Default"],
+            "pipeline_override": {
+                "MXU执行外部用例": {
+                    "custom_action_param": {"case_id": case.id}
+                }
+            },
+        }
+        if case.auto_stamina:
+            task["option"] = [AUTO_STAMINA_OPTION]
+        tasks.append(task)
+
+    result = {
+        "group": groups,
+        "task": tasks,
+    }
+    if any(case.auto_stamina for case in cases):
+        result["option"] = {
+            AUTO_STAMINA_OPTION: {
+                "type": "checkbox",
+                "label": "",
+                "default_case": [],
+                "cases": [
+                    {
+                        "name": "自动补体",
+                        "label": "自动补体",
+                        "pipeline_override": {
+                            "通用自动补体开关": {"enabled": True}
+                        },
                     }
-                },
+                ],
             }
-        )
-    return {"group": groups, "task": tasks}
+        }
+    return result
 
 
 def main() -> int:

@@ -139,7 +139,15 @@ def _time_reaches_target(engine, timeout: float, target_seconds: int) -> bool:
 
 def _parse_treatment_seconds(text: str) -> int | None:
     normalized = text.translate(str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "：": ":", ";": ":"}))
-    match = re.search(r"(?<!\d)(\d{1,3}):([0-5]\d):([0-5]\d)(?!\d)", normalized)
+    match = re.search(
+        r"(?<!\d)(\d{1,3}):([0-5]\d):([0-5]\d)(?!\d)", normalized
+    )
+    if not match:
+        # Maa 偶尔会漏识别小时与分钟之间的冒号，例如把
+        # 00:29:23 识别成 0029:23。
+        match = re.search(
+            r"(?<!\d)(\d{1,3})([0-5]\d):([0-5]\d)(?!\d)", normalized
+        )
     if not match:
         return None
     hours, minutes, seconds = (int(value) for value in match.groups())

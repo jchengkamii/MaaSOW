@@ -54,6 +54,8 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertNotRegex("00:30:00", time_node["expected"])
         reaches_node = pipeline["自动治疗时间达到30分钟"]
         self.assertRegex("00:30:00", reaches_node["expected"])
+        read_node = pipeline["自动治疗读取时间"]
+        self.assertRegex("0029:23", read_node["expected"])
         close_node = pipeline["自动治疗关闭治疗界面"]
         self.assertEqual([662, 163, 8, 8], close_node["target"])
 
@@ -200,6 +202,7 @@ class AutoTreatmentTests(unittest.TestCase):
 
     def test_exact_thirty_minutes_is_target_and_unchanged_time_is_reused(self):
         self.assertEqual(1800, _parse_treatment_seconds("00:30:00"))
+        self.assertEqual(1763, _parse_treatment_seconds("0029:23"))
 
         class Engine:
             @staticmethod
@@ -295,6 +298,45 @@ class AutoTreatmentTests(unittest.TestCase):
 
         self.assertEqual(19, controller.clicks)
         self.assertEqual((20, True, 1800), (adjustments, reached, seconds))
+
+    def test_far_above_target_uses_ocr_estimate_for_burst_minus_clicks(self):
+        class ClickJob:
+            succeeded = True
+
+            def wait(self):
+                return self
+
+        class Controller:
+            clicks = 0
+
+            def post_click(self, _x, _y):
+                self.clicks += 1
+                return ClickJob()
+
+        controller = Controller()
+        row = type("Row", (), {"minus_x": 220, "plus_x": 500, "y": 650})()
+        times = iter((3600, 3540, 1800, 1800))
+
+        with (
+            patch.object(auto_treatment_cycle, "detect_treatment_rows", return_value=[row]),
+            patch.object(auto_treatment_cycle, "_screenshot", return_value=np.zeros((1, 1, 3))),
+            patch.object(auto_treatment_cycle, "_time_exceeds_target", return_value=True),
+            patch.object(auto_treatment_cycle, "_time_reaches_target", return_value=True),
+            patch.object(
+                auto_treatment_cycle,
+                "_read_treatment_seconds",
+                side_effect=lambda *_args: next(times),
+            ),
+            patch.object(auto_treatment_cycle, "_click_and_detect_change", return_value=True),
+            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(auto_treatment_cycle.time, "sleep", return_value=None),
+        ):
+            adjustments, reached, seconds = auto_treatment_cycle._adjust_and_start_treatment(
+                object(), controller, 1800, 0.4, 1.5, 2000
+            )
+
+        self.assertEqual(29, controller.clicks)
+        self.assertEqual((30, True, 1800), (adjustments, reached, seconds))
 
     def test_all_rows_full_below_target_starts_without_repeated_plus_clicks(self):
         rows = [

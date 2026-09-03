@@ -28,6 +28,7 @@ def _adjust_and_start_treatment(
         raise RuntimeError("愈灵斋中未识别到弟子数量加减按钮")
 
     adjustments = 0
+    known_seconds: int | None = None
     initially_over_target = _time_exceeds_target(
         engine, recognition_timeout, target_seconds
     )
@@ -35,6 +36,78 @@ def _adjust_and_start_treatment(
     # 初始选择过多时，从最后一行向前减少，尽量保留优先级最高的第一行。
     if initially_over_target:
         for row in reversed(rows):
+            current_seconds = _read_treatment_seconds(engine, controller)
+            if current_seconds is not None:
+                known_seconds = current_seconds
+            if current_seconds is not None and current_seconds > target_seconds:
+                if adjustments >= max_adjustments:
+                    raise RuntimeError("自动治疗调整次数超过安全上限")
+                adjustments += 1
+                changed = _click_and_detect_change(
+                    controller, row, row.minus_x, click_delay
+                )
+                after_probe = _read_treatment_seconds(engine, controller)
+                if after_probe is not None:
+                    known_seconds = after_probe
+
+                # OCR 时长没有下降时，说明当前行已经减到 0；截图区域的
+                # 动画即使产生变化，也不再对这一行重复点击。
+                if (
+                    after_probe is not None
+                    and after_probe >= current_seconds
+                ):
+                    continue
+                if not changed:
+                    continue
+
+                if (
+                    after_probe is not None
+                    and after_probe < current_seconds
+                    and after_probe > target_seconds
+                ):
+                    seconds_per_click = current_seconds - after_probe
+                    measured_seconds = after_probe
+                    row_exhausted = False
+                    while measured_seconds > target_seconds:
+                        # 减法使用向上取整，允许最后一次略低于目标；后续会
+                        # 按优先级从第一行加回，保持原有的弟子选择策略。
+                        estimated_clicks = math.ceil(
+                            (measured_seconds - target_seconds)
+                            / seconds_per_click
+                        )
+                        burst_clicks = min(
+                            estimated_clicks,
+                            max_adjustments - adjustments,
+                            100,
+                        )
+                        if burst_clicks <= 0:
+                            raise RuntimeError("自动治疗调整次数超过安全上限")
+                        for _ in range(burst_clicks):
+                            if not controller.post_click(
+                                row.minus_x, row.y
+                            ).wait().succeeded:
+                                raise RuntimeError(
+                                    f"自动治疗快速点击失败：({row.minus_x}, {row.y})"
+                                )
+                            adjustments += 1
+                            time.sleep(0.03)
+                        time.sleep(max(0.2, click_delay))
+                        calibrated_seconds = _read_treatment_seconds(
+                            engine, controller
+                        )
+                        if calibrated_seconds is None:
+                            break
+                        known_seconds = calibrated_seconds
+                        if calibrated_seconds >= measured_seconds:
+                            row_exhausted = True
+                            break
+                        measured_seconds = calibrated_seconds
+                    if measured_seconds <= target_seconds:
+                        break
+                    if row_exhausted:
+                        continue
+
+            # OCR 无法给出有效差值时保留逐次确认兜底。
             while _time_exceeds_target(engine, recognition_timeout, target_seconds):
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
@@ -48,9 +121,22 @@ def _adjust_and_start_treatment(
 
     # 从第一行开始增加。先用一次点击测量该行单个弟子增加的时长，
     # 距离目标较远时按差值批量快点，随后再用 OCR 校准。
-    if not _time_reaches_target(engine, recognition_timeout, target_seconds):
+    if known_seconds is None:
+        known_seconds = _read_treatment_seconds(engine, controller)
+    needs_increase = (
+        known_seconds < target_seconds
+        if known_seconds is not None
+        else not _time_reaches_target(
+            engine, recognition_timeout, target_seconds
+        )
+    )
+    if needs_increase:
         for row in rows:
-            current_seconds = _read_treatment_seconds(engine, controller)
+            current_seconds = known_seconds
+            if current_seconds is None:
+                current_seconds = _read_treatment_seconds(engine, controller)
+            if current_seconds is not None:
+                known_seconds = current_seconds
             if current_seconds is not None and current_seconds < target_seconds:
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
@@ -59,6 +145,8 @@ def _adjust_and_start_treatment(
                     controller, row, row.plus_x, click_delay
                 )
                 after_probe = _read_treatment_seconds(engine, controller)
+                if after_probe is not None:
+                    known_seconds = after_probe
                 # 数量区域可能因按钮动画产生像素变化；只要 OCR 时长没有
                 # 增加，就以时长为准判定该行已经拉满，直接切换下一行。
                 if (
@@ -68,6 +156,8 @@ def _adjust_and_start_treatment(
                     continue
                 if not changed:
                     continue
+                if after_probe is not None and after_probe >= target_seconds:
+                    break
                 if (
                     after_probe is not None
                     and after_probe > current_seconds
@@ -100,10 +190,13 @@ def _adjust_and_start_treatment(
                         )
                         if calibrated_seconds is None:
                             break
+                        known_seconds = calibrated_seconds
                         if calibrated_seconds <= measured_seconds:
                             row_exhausted = True
                             break
                         measured_seconds = calibrated_seconds
+                    if measured_seconds >= target_seconds:
+                        break
                     if row_exhausted:
                         continue
 
@@ -119,10 +212,12 @@ def _adjust_and_start_treatment(
             if _time_reaches_target(engine, recognition_timeout, target_seconds):
                 break
 
-    reaches_target = _time_reaches_target(
-        engine, recognition_timeout, target_seconds
-    )
     final_seconds = _read_treatment_seconds(engine, controller)
+    reaches_target = (
+        final_seconds >= target_seconds
+        if final_seconds is not None
+        else _time_reaches_target(engine, recognition_timeout, target_seconds)
+    )
     if not _run_pipeline(engine, "自动治疗点击治疗按钮", recognition_timeout):
         raise RuntimeError("未识别到可点击的治疗按钮")
     return adjustments, reaches_target, final_seconds
