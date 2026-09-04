@@ -32,7 +32,9 @@ def _adjust_and_start_treatment(
     initially_over_target = (
         known_seconds > target_seconds
         if known_seconds is not None
-        else _time_exceeds_target(engine, recognition_timeout, target_seconds)
+        else _time_exceeds_target(
+            engine, recognition_timeout, target_seconds, controller
+        )
     )
 
     # 初始选择过多时，从最后一行向前减少，尽量保留优先级最高的第一行。
@@ -110,7 +112,9 @@ def _adjust_and_start_treatment(
                         continue
 
             # OCR 无法给出有效差值时保留逐次确认兜底。
-            while _time_exceeds_target(engine, recognition_timeout, target_seconds):
+            while _time_exceeds_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
                 adjustments += 1
@@ -118,7 +122,9 @@ def _adjust_and_start_treatment(
                     controller, row, row.minus_x, click_delay
                 ):
                     break
-            if not _time_exceeds_target(engine, recognition_timeout, target_seconds):
+            if not _time_exceeds_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 break
 
     # 从第一行开始增加。先用一次点击测量该行单个弟子增加的时长，
@@ -129,7 +135,7 @@ def _adjust_and_start_treatment(
         known_seconds < target_seconds
         if known_seconds is not None
         else not _time_reaches_target(
-            engine, recognition_timeout, target_seconds
+            engine, recognition_timeout, target_seconds, controller
         )
     )
     if needs_increase:
@@ -204,21 +210,25 @@ def _adjust_and_start_treatment(
 
             # OCR 估算可能遇到按钮已拉满或少量点击未生效，保留原逻辑兜底。
             while not _time_reaches_target(
-                engine, recognition_timeout, target_seconds
+                engine, recognition_timeout, target_seconds, controller
             ):
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
                 adjustments += 1
                 if not _click_and_detect_change(controller, row, row.plus_x, click_delay):
                     break
-            if _time_reaches_target(engine, recognition_timeout, target_seconds):
+            if _time_reaches_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 break
 
     final_seconds = _read_treatment_seconds(engine, controller)
     reaches_target = (
         final_seconds >= target_seconds
         if final_seconds is not None
-        else _time_reaches_target(engine, recognition_timeout, target_seconds)
+        else _time_reaches_target(
+            engine, recognition_timeout, target_seconds, controller
+        )
     )
     _click_treatment_with_resource_refill(engine, recognition_timeout)
     return adjustments, reaches_target, final_seconds

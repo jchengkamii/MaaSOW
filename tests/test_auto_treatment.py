@@ -10,6 +10,8 @@ from agent.core import CUSTOM_ACTION_DIR, RESOURCE_DIR, CaseLoader
 from agent.custom.action.auto_treatment.auto_treatment import (
     _crop_changed,
     _parse_treatment_seconds,
+    _time_exceeds_target,
+    _time_reaches_target,
     detect_treatment_rows,
 )
 from agent.custom.action.auto_treatment import auto_treatment_cycle
@@ -102,6 +104,21 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertFalse(_crop_changed(before, after))
         after[10:20, 20:30] = 255
         self.assertTrue(_crop_changed(before, after))
+
+    def test_custom_target_uses_numeric_ocr_comparison(self):
+        with patch(
+            "agent.custom.action.auto_treatment.auto_treatment._read_treatment_seconds",
+            return_value=2700,
+        ):
+            self.assertTrue(
+                _time_reaches_target(object(), 1.5, 2400, object())
+            )
+            self.assertTrue(
+                _time_exceeds_target(object(), 1.5, 2400, object())
+            )
+            self.assertFalse(
+                _time_exceeds_target(object(), 1.5, 2700, object())
+            )
 
     def test_cycle_waits_collects_and_finishes_after_stable_empty_state(self):
         class StopEvent:

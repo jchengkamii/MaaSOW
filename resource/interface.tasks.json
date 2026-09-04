@@ -68,7 +68,7 @@
       "label": "自动治疗",
       "entry": "MXU执行外部用例",
       "default_check": false,
-      "description": "循环治疗伤兵：单次时间刚超过30分钟，仙盟互助后等待完成并自动收取",
+      "description": "循环治疗伤兵：按设置的单次目标时长治疗，仙盟互助后等待完成并自动收取",
       "group": [
         "group_02"
       ],
@@ -84,7 +84,10 @@
             "case_id": "auto_treatment"
           }
         }
-      }
+      },
+      "option": [
+        "自动治疗时长"
+      ]
     },
     {
       "name": "auto_help",
@@ -132,5 +135,31 @@
         }
       }
     }
-  ]
+  ],
+  "option": {
+    "自动治疗时长": {
+      "type": "input",
+      "label": "",
+      "description": "设置每批治疗的目标时长（分钟）",
+      "inputs": [
+        {
+          "name": "目标分钟",
+          "label": "分钟",
+          "description": "请输入 1–10000 的整数，默认 30 分钟",
+          "default": "30",
+          "pipeline_type": "int",
+          "verify": "^(?:[1-9]\\d{0,3}|10000)$",
+          "pattern_msg": "请输入 1–10000 的整数"
+        }
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_treatment",
+            "target_minutes": "{目标分钟}"
+          }
+        }
+      }
+    }
+  }
 }

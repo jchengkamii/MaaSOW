@@ -10,6 +10,7 @@ from agent.custom.action.run_configured_case import (
     WORKER_SCRIPT,
     auto_stamina_enabled,
     parse_case_id,
+    parse_case_request,
     worker_command,
     worker_command_with_options,
 )
@@ -55,9 +56,21 @@ class MxuIntegrationTests(unittest.TestCase):
             param = task["pipeline_override"]["MXU执行外部用例"]["custom_action_param"]
             self.assertEqual(case.id, param["case_id"])
             self.assertFalse(case.auto_stamina)
-            self.assertNotIn("option", task)
+            if case.id == "auto_treatment":
+                self.assertEqual(["自动治疗时长"], task["option"])
+            else:
+                self.assertNotIn("option", task)
 
-        self.assertNotIn("option", generated)
+        treatment_option = generated["option"]["自动治疗时长"]
+        self.assertEqual("input", treatment_option["type"])
+        treatment_input = treatment_option["inputs"][0]
+        self.assertEqual("目标分钟", treatment_input["name"])
+        self.assertEqual("30", treatment_input["default"])
+        self.assertEqual("int", treatment_input["pipeline_type"])
+        override = treatment_option["pipeline_override"]
+        custom_param = override["MXU执行外部用例"]["custom_action_param"]
+        self.assertEqual("auto_treatment", custom_param["case_id"])
+        self.assertEqual("{目标分钟}", custom_param["target_minutes"])
 
     def test_only_opted_in_case_gets_compact_auto_stamina_checkbox(self):
         base_case = CaseLoader().load()[0]
@@ -94,6 +107,12 @@ class MxuIntegrationTests(unittest.TestCase):
     def test_agent_case_parameter_parser(self):
         self.assertEqual("auto_radar", parse_case_id('{"case_id":"auto_radar"}'))
         self.assertEqual("auto_radar", parse_case_id('"auto_radar"'))
+        self.assertEqual(
+            ("auto_treatment", 45),
+            parse_case_request(
+                '{"case_id":"auto_treatment","target_minutes":45}'
+            ),
+        )
 
     def test_agent_delegates_cases_to_independent_worker(self):
         command = worker_command("auto_radar")
@@ -104,6 +123,13 @@ class MxuIntegrationTests(unittest.TestCase):
 
         enabled_command = worker_command_with_options("auto_radar", True)
         self.assertEqual("--auto-stamina", enabled_command[-1])
+
+        treatment_command = worker_command_with_options(
+            "auto_treatment", False, 45
+        )
+        self.assertEqual(
+            ["--target-minutes", "45"], treatment_command[-2:]
+        )
 
     def test_agent_reads_auto_stamina_toggle_from_merged_pipeline(self):
         class Context:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from dataclasses import replace
 
 from agent.core import AutomationEngine, CaseLoader
 from agent.custom.action.auto_help.automation_mutex import AutomationMutex
@@ -18,13 +19,25 @@ def _emit_result(payload: dict[str, object]) -> None:
     )
 
 
-def execute(case_id: str, auto_stamina: bool = False) -> int:
+def execute(
+    case_id: str,
+    auto_stamina: bool = False,
+    target_minutes: int | None = None,
+) -> int:
     started = time.monotonic()
     try:
         cases = {case.id: case for case in CaseLoader().load()}
         case = cases.get(case_id)
         if case is None:
             raise RuntimeError(f"未找到外部用例：{case_id}")
+        if target_minutes is not None:
+            if case.id != "auto_treatment":
+                raise RuntimeError("治疗时长参数只能用于自动治疗")
+            if not 1 <= target_minutes <= 10000:
+                raise RuntimeError("治疗目标分钟数必须在 1–10000 之间")
+            parameters = dict(case.parameters or {})
+            parameters["target_seconds"] = target_minutes * 60
+            case = replace(case, parameters=parameters)
 
         print(f"[Worker] 开始执行：{case.name}", flush=True)
         engine = AutomationEngine(
@@ -67,8 +80,17 @@ def main() -> int:
         action="store_true",
         help="行军体力不足时执行通用自动补体流程",
     )
+    parser.add_argument(
+        "--target-minutes",
+        type=int,
+        help="自动治疗的单批目标分钟数",
+    )
     args = parser.parse_args()
-    return execute(args.case_id.strip(), auto_stamina=args.auto_stamina)
+    return execute(
+        args.case_id.strip(),
+        auto_stamina=args.auto_stamina,
+        target_minutes=args.target_minutes,
+    )
 
 
 if __name__ == "__main__":

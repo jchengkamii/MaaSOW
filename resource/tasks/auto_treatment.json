@@ -3,7 +3,7 @@
   "id": "auto_treatment",
   "name": "自动治疗",
   "group": "日常任务",
-  "description": "循环治疗伤兵：单次时间刚超过30分钟，仙盟互助后等待完成并自动收取",
+  "description": "循环治疗伤兵：按设置的单次目标时长治疗，仙盟互助后等待完成并自动收取",
   "order": 65,
   "default_checked": false,
   "enabled": true,

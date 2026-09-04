@@ -25,25 +25,42 @@ from maa.custom_action import CustomAction  # noqa: E402
 
 
 def parse_case_id(raw: str) -> str:
+    return parse_case_request(raw)[0]
+
+
+def parse_case_request(raw: str) -> tuple[str, int | None]:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError:
         value = raw
+    target_minutes = None
     if isinstance(value, dict):
+        raw_minutes = value.get("target_minutes")
+        if raw_minutes is not None:
+            try:
+                target_minutes = int(raw_minutes)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("治疗目标分钟数必须是整数") from exc
+            if not 1 <= target_minutes <= 10000:
+                raise RuntimeError("治疗目标分钟数必须在 1–10000 之间")
         value = value.get("case_id", "")
     if not isinstance(value, str) or not value.strip():
         raise RuntimeError(f"无效的用例参数：{raw!r}")
-    return value.strip()
+    return value.strip(), target_minutes
 
 
 def worker_command(case_id: str) -> list[str]:
     return worker_command_with_options(case_id, auto_stamina=False)
 
 
-def worker_command_with_options(case_id: str, auto_stamina: bool) -> list[str]:
+def worker_command_with_options(
+    case_id: str, auto_stamina: bool, target_minutes: int | None = None
+) -> list[str]:
     command = [sys.executable, "-u", "-m", "agent.worker", "--case-id", case_id]
     if auto_stamina:
         command.append("--auto-stamina")
+    if target_minutes is not None:
+        command.extend(["--target-minutes", str(target_minutes)])
     return command
 
 
@@ -67,7 +84,7 @@ def _stop_process(process: subprocess.Popen[str]) -> None:
 class RunConfiguredCase(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:
-            case_id = parse_case_id(argv.custom_action_param)
+            case_id, target_minutes = parse_case_request(argv.custom_action_param)
         except Exception as exc:
             print(f"[Agent] 用例参数错误：{exc}", flush=True)
             return False
@@ -78,14 +95,21 @@ class RunConfiguredCase(CustomAction):
             print(f"[Agent] 找不到用例工作进程脚本：{WORKER_SCRIPT}", flush=True)
             return False
 
-        suffix = "（自动补体已启用）" if use_auto_stamina else ""
+        suffix_parts = []
+        if use_auto_stamina:
+            suffix_parts.append("自动补体已启用")
+        if target_minutes is not None:
+            suffix_parts.append(f"治疗目标 {target_minutes} 分钟")
+        suffix = f"（{'；'.join(suffix_parts)}）" if suffix_parts else ""
         print(f"[Agent] 提交独立工作进程：{case_id}{suffix}", flush=True)
         environment = os.environ.copy()
         environment["PYTHONUTF8"] = "1"
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         try:
             process = subprocess.Popen(
-                worker_command_with_options(case_id, use_auto_stamina),
+                worker_command_with_options(
+                    case_id, use_auto_stamina, target_minutes
+                ),
                 cwd=PROJECT_DIR,
                 env=environment,
                 stdout=subprocess.PIPE,

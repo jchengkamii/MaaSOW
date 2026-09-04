@@ -125,15 +125,27 @@ def _click_and_detect_change(
     return _crop_changed(before, after)
 
 
-def _time_exceeds_target(engine, timeout: float, target_seconds: int) -> bool:
+def _time_exceeds_target(
+    engine, timeout: float, target_seconds: int, controller=None
+) -> bool:
+    if controller is not None:
+        seconds = _read_treatment_seconds(engine, controller)
+        if seconds is not None:
+            return seconds > target_seconds
     if target_seconds != 1800:
-        raise RuntimeError("当前自动治疗 Pipeline 仅支持30分钟目标")
+        raise RuntimeError("无法读取治疗时间，不能判断自定义治疗目标")
     return _run_pipeline(engine, "自动治疗时间超过30分钟", timeout)
 
 
-def _time_reaches_target(engine, timeout: float, target_seconds: int) -> bool:
+def _time_reaches_target(
+    engine, timeout: float, target_seconds: int, controller=None
+) -> bool:
+    if controller is not None:
+        seconds = _read_treatment_seconds(engine, controller)
+        if seconds is not None:
+            return seconds >= target_seconds
     if target_seconds != 1800:
-        raise RuntimeError("当前自动治疗 Pipeline 仅支持30分钟目标")
+        raise RuntimeError("无法读取治疗时间，不能判断自定义治疗目标")
     return _run_pipeline(engine, "自动治疗时间达到30分钟", timeout)
 
 
@@ -238,13 +250,15 @@ def run(engine, case) -> str:
 
     adjustments = 0
     initially_over_target = _time_exceeds_target(
-        engine, recognition_timeout, target_seconds
+        engine, recognition_timeout, target_seconds, controller
     )
 
     # 初始选择过多时，从最后一行向前减少，尽量保留优先级最高的第一行。
     if initially_over_target:
         for row in reversed(rows):
-            while _time_exceeds_target(engine, recognition_timeout, target_seconds):
+            while _time_exceeds_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
                 adjustments += 1
@@ -252,29 +266,44 @@ def run(engine, case) -> str:
                     controller, row, row.minus_x, click_delay
                 ):
                     break
-            if not _time_exceeds_target(engine, recognition_timeout, target_seconds):
+            if not _time_exceeds_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 break
 
     # 从第一行开始逐个增加；一行拉满后自动转到下一行。
-    if not _time_reaches_target(engine, recognition_timeout, target_seconds):
+    if not _time_reaches_target(
+        engine, recognition_timeout, target_seconds, controller
+    ):
         for row in rows:
             while not _time_reaches_target(
-                engine, recognition_timeout, target_seconds
+                engine, recognition_timeout, target_seconds, controller
             ):
                 if adjustments >= max_adjustments:
                     raise RuntimeError("自动治疗调整次数超过安全上限")
                 adjustments += 1
                 if not _click_and_detect_change(controller, row, row.plus_x, click_delay):
                     break
-            if _time_reaches_target(engine, recognition_timeout, target_seconds):
+            if _time_reaches_target(
+                engine, recognition_timeout, target_seconds, controller
+            ):
                 break
 
     reaches_target = _time_reaches_target(
-        engine, recognition_timeout, target_seconds
+        engine, recognition_timeout, target_seconds, controller
     )
     if not _run_pipeline(engine, "自动治疗点击治疗按钮", recognition_timeout):
         raise RuntimeError("未识别到可点击的治疗按钮")
 
+    target_minutes = target_seconds / 60
+    target_label = (
+        f"{int(target_minutes)}分钟"
+        if target_minutes.is_integer()
+        else f"{target_minutes:g}分钟"
+    )
     if reaches_target:
-        return f"已调整 {adjustments} 次并开始治疗，治疗时间达到30分钟"
-    return f"全部弟子治疗时间不足30分钟，已拉满并开始治疗（调整 {adjustments} 次）"
+        return f"已调整 {adjustments} 次并开始治疗，治疗时间达到{target_label}"
+    return (
+        f"全部弟子治疗时间不足{target_label}，"
+        f"已拉满并开始治疗（调整 {adjustments} 次）"
+    )
