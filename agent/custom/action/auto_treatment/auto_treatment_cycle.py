@@ -28,9 +28,11 @@ def _adjust_and_start_treatment(
         raise RuntimeError("愈灵斋中未识别到弟子数量加减按钮")
 
     adjustments = 0
-    known_seconds: int | None = None
-    initially_over_target = _time_exceeds_target(
-        engine, recognition_timeout, target_seconds
+    known_seconds = _read_treatment_seconds(engine, controller)
+    initially_over_target = (
+        known_seconds > target_seconds
+        if known_seconds is not None
+        else _time_exceeds_target(engine, recognition_timeout, target_seconds)
     )
 
     # 初始选择过多时，从最后一行向前减少，尽量保留优先级最高的第一行。
@@ -218,9 +220,22 @@ def _adjust_and_start_treatment(
         if final_seconds is not None
         else _time_reaches_target(engine, recognition_timeout, target_seconds)
     )
-    if not _run_pipeline(engine, "自动治疗点击治疗按钮", recognition_timeout):
-        raise RuntimeError("未识别到可点击的治疗按钮")
+    _click_treatment_with_resource_refill(engine, recognition_timeout)
     return adjustments, reaches_target, final_seconds
+
+
+def _click_treatment_with_resource_refill(
+    engine, recognition_timeout: float
+) -> None:
+    """开始治疗；资源不足时补充全部并重试。"""
+    for attempt in range(4):
+        if not _run_pipeline(engine, "自动治疗点击治疗按钮", recognition_timeout):
+            raise RuntimeError("未识别到可点击的治疗按钮")
+        if not _run_pipeline(engine, "自动治疗资源不足补充全部", 1.2):
+            return
+        engine.log("治疗资源不足，已点击补充全部，重新尝试治疗……")
+        if attempt == 3:
+            raise RuntimeError("补充全部后仍反复出现资源不足提示")
 
 
 def _adjust_or_reuse_and_start_treatment(
@@ -234,8 +249,7 @@ def _adjust_or_reuse_and_start_treatment(
 ) -> tuple[int, int | None, bool]:
     current_seconds = _read_treatment_seconds(engine, controller)
     if previous_seconds is not None and current_seconds == previous_seconds:
-        if not _run_pipeline(engine, "自动治疗点击治疗按钮", recognition_timeout):
-            raise RuntimeError("未识别到可点击的治疗按钮")
+        _click_treatment_with_resource_refill(engine, recognition_timeout)
         engine.log(
             f"治疗时间仍为 {current_seconds // 3600:02d}:"
             f"{current_seconds % 3600 // 60:02d}:{current_seconds % 60:02d}，"

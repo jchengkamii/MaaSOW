@@ -178,7 +178,7 @@
       175,
       50
     ],
-    "expected": "^(?:\\d{1,3}:[0-5]\\d:[0-5]\\d|\\d{1,3}[0-5]\\d:[0-5]\\d)$",
+    "expected": ".*(?:\\d{1,3}:[0-5]\\d:[0-5]\\d|\\d{1,3}[0-5]\\d:[0-5]\\d).*",
     "replace": [
       ["O", "0"],
       ["o", "0"],
@@ -188,7 +188,8 @@
       [";", ":"]
     ],
     "only_rec": true,
-    "threshold": 0.2
+    "threshold": 0.2,
+    "timeout": 1200
   },
   "自动治疗点击治疗按钮": {
     "recognition": "TemplateMatch",
@@ -202,6 +203,26 @@
     ],
     "action": "Click",
     "post_delay": 800
+  },
+  "自动治疗资源不足补充全部": {
+    "recognition": "OCR",
+    "roi": [
+      190,
+      1080,
+      350,
+      210
+    ],
+    "expected": "补充全部",
+    "only_rec": true,
+    "threshold": 0.3,
+    "action": "Click",
+    "target": [
+      335,
+      1140,
+      50,
+      45
+    ],
+    "post_delay": 900
   },
   "自动治疗确认治疗进行中": {
     "recognition": "TemplateMatch",

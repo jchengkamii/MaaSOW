@@ -139,6 +139,19 @@ def _time_reaches_target(engine, timeout: float, target_seconds: int) -> bool:
 
 def _parse_treatment_seconds(text: str) -> int | None:
     normalized = text.translate(str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "：": ":", ";": ":"}))
+    # 超过 24 小时时游戏显示“2天 01:06:06”。OCR 也可能漏掉“天”字，
+    # 变成“2 01:06:06”，两种形式都必须先按天数解析。
+    day_match = re.search(
+        r"(?<!\d)(\d{1,3})(?:\s*天\s*|\s+)(\d{1,2}):([0-5]\d):([0-5]\d)(?!\d)",
+        normalized,
+    )
+    if day_match:
+        days, hours, minutes, seconds = (
+            int(value) for value in day_match.groups()
+        )
+        if hours < 24:
+            return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
     match = re.search(
         r"(?<!\d)(\d{1,3}):([0-5]\d):([0-5]\d)(?!\d)", normalized
     )
@@ -176,8 +189,6 @@ def _read_treatment_seconds(engine, controller) -> int | None:
         job = tasker.post_task("自动治疗读取时间").wait()
         if engine.stop_event.is_set():
             raise InterruptedError("用户停止执行")
-        if not job.succeeded:
-            return None
         detail = job.get()
         if detail is None:
             return None
@@ -185,7 +196,13 @@ def _read_treatment_seconds(engine, controller) -> int | None:
             recognition = node.recognition
             if recognition is None:
                 continue
-            candidates = [recognition.best_result, *recognition.filtered_results]
+            # 即使 expected 因图标噪声未命中，all_results 中通常仍有可用
+            # OCR 文本，因此不能只依赖 job.succeeded / filtered_results。
+            candidates = [
+                recognition.best_result,
+                *recognition.filtered_results,
+                *recognition.all_results,
+            ]
             for candidate in candidates:
                 text = getattr(candidate, "text", None)
                 if text and (seconds := _parse_treatment_seconds(text)) is not None:

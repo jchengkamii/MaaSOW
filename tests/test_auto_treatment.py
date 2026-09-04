@@ -15,6 +15,10 @@ from agent.custom.action.auto_treatment.auto_treatment import (
 from agent.custom.action.auto_treatment import auto_treatment_cycle
 
 
+def _pipeline_without_resource_popup(_engine, entry, _timeout):
+    return entry != "自动治疗资源不足补充全部"
+
+
 class AutoTreatmentTests(unittest.TestCase):
     def test_case_is_registered_with_thirty_minute_target(self):
         case = next(case for case in CaseLoader().load() if case.id == "auto_treatment")
@@ -56,8 +60,15 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertRegex("00:30:00", reaches_node["expected"])
         read_node = pipeline["自动治疗读取时间"]
         self.assertRegex("0029:23", read_node["expected"])
+        self.assertRegex("2 01:41:37", read_node["expected"])
+        self.assertEqual(1200, read_node["timeout"])
         close_node = pipeline["自动治疗关闭治疗界面"]
         self.assertEqual([662, 163, 8, 8], close_node["target"])
+        refill_node = pipeline["自动治疗资源不足补充全部"]
+        self.assertEqual("OCR", refill_node["recognition"])
+        self.assertEqual("补充全部", refill_node["expected"])
+        self.assertEqual("Click", refill_node["action"])
+        self.assertEqual([335, 1140, 50, 45], refill_node["target"])
 
     def test_treatment_assets_and_ocr_model_exist(self):
         image_dir = RESOURCE_DIR / "image" / "AutoTreatment"
@@ -203,6 +214,9 @@ class AutoTreatmentTests(unittest.TestCase):
     def test_exact_thirty_minutes_is_target_and_unchanged_time_is_reused(self):
         self.assertEqual(1800, _parse_treatment_seconds("00:30:00"))
         self.assertEqual(1763, _parse_treatment_seconds("0029:23"))
+        self.assertEqual(178897, _parse_treatment_seconds("2 01:41:37"))
+        self.assertEqual(176766, _parse_treatment_seconds("2天 01:06:06"))
+        self.assertEqual(176766, _parse_treatment_seconds("2天01:06:06"))
 
         class Engine:
             @staticmethod
@@ -219,7 +233,7 @@ class AutoTreatmentTests(unittest.TestCase):
             patch.object(
                 auto_treatment_cycle,
                 "_run_pipeline",
-                return_value=True,
+                side_effect=_pipeline_without_resource_popup,
             ) as pipeline,
             patch.object(
                 auto_treatment_cycle,
@@ -232,7 +246,8 @@ class AutoTreatmentTests(unittest.TestCase):
 
         self.assertEqual((0, 1800, True), result)
         adjust.assert_not_called()
-        pipeline.assert_called_once_with(engine, "自动治疗点击治疗按钮", 1.5)
+        pipeline.assert_any_call(engine, "自动治疗点击治疗按钮", 1.5)
+        pipeline.assert_any_call(engine, "自动治疗资源不足补充全部", 1.2)
 
     def test_first_batch_at_exact_thirty_minutes_does_not_click_plus_or_minus(self):
         controller = object()
@@ -246,7 +261,11 @@ class AutoTreatmentTests(unittest.TestCase):
             patch.object(auto_treatment_cycle, "_time_exceeds_target", return_value=False),
             patch.object(auto_treatment_cycle, "_time_reaches_target", return_value=True),
             patch.object(auto_treatment_cycle, "_read_treatment_seconds", return_value=1800),
-            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(
+                auto_treatment_cycle,
+                "_run_pipeline",
+                side_effect=_pipeline_without_resource_popup,
+            ),
             patch.object(auto_treatment_cycle, "_click_and_detect_change") as click,
         ):
             result = auto_treatment_cycle._adjust_and_start_treatment(
@@ -289,7 +308,11 @@ class AutoTreatmentTests(unittest.TestCase):
                 side_effect=lambda *_args: next(times),
             ),
             patch.object(auto_treatment_cycle, "_click_and_detect_change", return_value=True),
-            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(
+                auto_treatment_cycle,
+                "_run_pipeline",
+                side_effect=_pipeline_without_resource_popup,
+            ),
             patch.object(auto_treatment_cycle.time, "sleep", return_value=None),
         ):
             adjustments, reached, seconds = auto_treatment_cycle._adjust_and_start_treatment(
@@ -315,7 +338,7 @@ class AutoTreatmentTests(unittest.TestCase):
 
         controller = Controller()
         row = type("Row", (), {"minus_x": 220, "plus_x": 500, "y": 650})()
-        times = iter((3600, 3540, 1800, 1800))
+        times = iter((3600, 3600, 3540, 1800, 1800))
 
         with (
             patch.object(auto_treatment_cycle, "detect_treatment_rows", return_value=[row]),
@@ -328,7 +351,11 @@ class AutoTreatmentTests(unittest.TestCase):
                 side_effect=lambda *_args: next(times),
             ),
             patch.object(auto_treatment_cycle, "_click_and_detect_change", return_value=True),
-            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(
+                auto_treatment_cycle,
+                "_run_pipeline",
+                side_effect=_pipeline_without_resource_popup,
+            ),
             patch.object(auto_treatment_cycle.time, "sleep", return_value=None),
         ):
             adjustments, reached, seconds = auto_treatment_cycle._adjust_and_start_treatment(
@@ -365,7 +392,11 @@ class AutoTreatmentTests(unittest.TestCase):
                 "_click_and_detect_change",
                 return_value=True,
             ) as click,
-            patch.object(auto_treatment_cycle, "_run_pipeline", return_value=True),
+            patch.object(
+                auto_treatment_cycle,
+                "_run_pipeline",
+                side_effect=_pipeline_without_resource_popup,
+            ),
         ):
             result = auto_treatment_cycle._adjust_and_start_treatment(
                 object(), object(), 1800, 0.4, 1.5, 2000
@@ -373,6 +404,38 @@ class AutoTreatmentTests(unittest.TestCase):
 
         self.assertEqual((2, False, 1200), result)
         self.assertEqual(2, click.call_count)
+
+    def test_resource_shortage_refills_and_retries_treatment(self):
+        class Engine:
+            messages = []
+
+            def log(self, message):
+                self.messages.append(message)
+
+        engine = Engine()
+        refill_results = iter((True, False))
+
+        def fake_pipeline(_engine, entry, _timeout):
+            if entry == "自动治疗点击治疗按钮":
+                return True
+            if entry == "自动治疗资源不足补充全部":
+                return next(refill_results)
+            return False
+
+        with patch.object(
+            auto_treatment_cycle, "_run_pipeline", side_effect=fake_pipeline
+        ) as pipeline:
+            auto_treatment_cycle._click_treatment_with_resource_refill(
+                engine, 1.5
+            )
+
+        treatment_calls = [
+            call
+            for call in pipeline.call_args_list
+            if call.args[1] == "自动治疗点击治疗按钮"
+        ]
+        self.assertEqual(2, len(treatment_calls))
+        self.assertEqual(1, len(engine.messages))
 
 
 if __name__ == "__main__":
