@@ -3,38 +3,29 @@
 本项目基于 MaaFramework 和 MXU（MaaFramework Next UI），用于对微信小游戏
 “九霄仙府”执行 Win32 黑盒自动化测试。
 
-## 环境要求
+## 使用与环境准备
 
-- Windows 10/11
-- Python 3.12
-- 已安装并登录微信
-- 本地运行包中的 `九霄仙府自动化测试.exe` 和 `maafw/`
+支持 Windows 10 1809 及以上的 Windows 10/11 x64，微信需自行安装登录。
 
-Python 依赖由 `requirements.txt` 管理，其中固定使用 MaaFw 5.12.3。
+首次双击“使用前环境准备.bat”，脚本检测环境，
+缺少时联网下载官方 Python 3.12.10 嵌入版、pip、requirements.txt 依赖、
+VC++ 与 WebView2。Python 位于项目 .runtime/python/，与系统环境隔离。
+Python 压缩包校验 SHA256，微软安装程序校验数字签名。
 
-## 启动
+随后双击“九霄仙府自动化测试.exe”打开前台。
+环境异常时重新运行环境准备脚本，已满足时不重复下载。支持中文、空格目录；PowerShell 脚本使用 UTF-8 BOM，
+批处理内容使用 ASCII，Python 输出固定为 UTF-8。
+VC++ 安装可能弹出 Windows 授权提示，安装要求重启时应重启后重新准备。
 
-双击：
-
-```text
-启动自动化前台.bat
-```
-
-启动脚本会自动：
-
-1. 创建 `.venv` Python 3.12 虚拟环境。
-2. 安装 MaaFw Python 依赖。
-3. 根据 `resource/tasks` 重新生成 `resource/interface.tasks.json`。
-4. 启动 MXU 前台。
-
-首次进入 MXU 后，选择“九霄仙府游戏窗口”控制器和“九霄仙府测试资源”，
+首次进入 MXU 后，选择游戏窗口控制器和测试资源，
 连接已经打开的游戏窗口，再勾选需要执行的任务。
 
 ## 项目结构
 
 ```text
 interface.json                         MXU Project Interface V2 主配置
-启动自动化前台.bat                     环境准备与启动入口
+使用前环境准备.bat                     联网检测和安装环境
+九霄仙府自动化测试.exe                 前台唯一启动入口
 requirements.txt                       Python 运行依赖
 agent/main.py                          AgentServer 启动入口
 agent/core.py                          任务加载、窗口连接和 Maa 执行核心
@@ -82,8 +73,18 @@ py -3.12 -m venv .venv
 GitHub Actions 会在 Windows + Python 3.12 环境中重新生成 MXU Interface，
 并运行全部测试。
 
-## 二进制发行包
+## 打包分发
 
-源码仓库默认不跟踪 `九霄仙府自动化测试.exe` 和 `maafw/`。本地文件不会被删除，
-但建议在遵守 MXU 与 MaaFramework 许可证的前提下，将完整运行包通过 GitHub Release
-单独发布，避免第三方二进制污染 Git 历史。
+先完成环境准备，再运行：
+
+    & ./.runtime/python/python.exe -X utf8 ./tools/build_distribution.py
+
+脚本重新生成 Interface、运行全部测试，以白名单复制必要文件，
+输出 dist/release-1.0.0.zip。
+压缩包包含前台、maafw、资源、Agent、环境准备入口、说明和第三方许可；
+不含 .venv、.runtime、Git、IDE、截图原图、缓存、日志和个人配置。
+接收者完整解压后运行“使用前环境准备.bat”，联网准备一次后直接打开 EXE。
+打包流程不会修改当前用户配置。
+
+九霄仙府自动化测试.exe、maafw/ 为本机已有的第三方二进制，
+源码仓库不跟踪；重新构建分发包前须自行准备这些文件。

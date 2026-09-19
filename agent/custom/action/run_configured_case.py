@@ -10,14 +10,11 @@ import time
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[3]
-RUNTIME_DIR = PROJECT_DIR.parent / ".maafw_runtime"
 WORKER_SCRIPT = PROJECT_DIR / "agent" / "worker.py"
 RESULT_PREFIX = "__MXU_CASE_RESULT__="
 
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
-if str(RUNTIME_DIR) not in sys.path:
-    sys.path.insert(0, str(RUNTIME_DIR))
 
 from maa.agent.agent_server import AgentServer  # noqa: E402
 from maa.context import Context  # noqa: E402

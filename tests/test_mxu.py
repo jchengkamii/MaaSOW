@@ -30,9 +30,9 @@ class MxuIntegrationTests(unittest.TestCase):
             "^Chrome_WidgetWin_0$",
             interface["controller"][0]["win32"]["class_regex"],
         )
-        self.assertEqual("./.venv/Scripts/python.exe", interface["agent"]["child_exec"])
+        self.assertEqual("./.runtime/python/python.exe", interface["agent"]["child_exec"])
         self.assertEqual(["resource/base"], interface["resource"][0]["path"])
-        self.assertEqual(["-u", "./agent/main.py"], interface["agent"]["child_args"])
+        self.assertEqual(["-X", "utf8", "-u", "./agent/main.py"], interface["agent"]["child_args"])
         self.assertIn("resource/interface.tasks.json", interface["import"])
 
     def test_saved_preview_device_is_game_window(self):

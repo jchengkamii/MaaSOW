@@ -13,7 +13,6 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 CUSTOM_ACTION_DIR = PROJECT_DIR / "agent" / "custom" / "action"
 RESOURCE_DIR = PROJECT_DIR / "resource" / "base"
 TASKS_DIR = PROJECT_DIR / "resource" / "tasks"
-RUNTIME_DIR = PROJECT_DIR.parent / ".maafw_runtime"
 
 if sys.version_info[:2] != (3, 12):
     raise RuntimeError(
@@ -22,7 +21,6 @@ if sys.version_info[:2] != (3, 12):
         rf"请使用：{PROJECT_DIR / '.venv' / 'Scripts' / 'python.exe'}"
     )
 
-sys.path.insert(0, str(RUNTIME_DIR))
 
 from maa.controller import (  # noqa: E402
     MaaWin32InputMethodEnum,

@@ -38,8 +38,10 @@
     }
   ],
   "agent": {
-    "child_exec": "./.venv/Scripts/python.exe",
+    "child_exec": "./.runtime/python/python.exe",
     "child_args": [
+      "-X",
+      "utf8",
       "-u",
       "./agent/main.py"
     ]

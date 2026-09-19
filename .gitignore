@@ -40,3 +40,8 @@ extensions/
 .env
 .env.*
 !.env.example
+
+# Distribution build artifacts and local downloaded runtime
+build/
+dist/
+.runtime/
