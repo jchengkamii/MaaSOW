@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from maa.tasker import Tasker
+from agent.recognition_fallback import recognition_candidates
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,14 @@ def detect_treatment_rows(image: np.ndarray) -> list[TreatmentRow]:
     height, width = image.shape[:2]
     x1, x2 = int(width * 0.66), int(width * 0.77)
     y1, y2 = int(height * 0.33), int(height * 0.72)
+    rows = _detect_treatment_rows_in_region(image, x1, y1, x2, y2)
+    if rows:
+        return rows
+    return _detect_treatment_rows_in_region(image, 0, 0, width, height)
+
+
+def _detect_treatment_rows_in_region(image, x1, y1, x2, y2) -> list[TreatmentRow]:
+    width = image.shape[1]
     roi = image[y1:y2, x1:x2]
     if roi.size == 0:
         return []
@@ -210,11 +219,7 @@ def _read_treatment_seconds(engine, controller) -> int | None:
                 continue
             # 即使 expected 因图标噪声未命中，all_results 中通常仍有可用
             # OCR 文本，因此不能只依赖 job.succeeded / filtered_results。
-            candidates = [
-                recognition.best_result,
-                *recognition.filtered_results,
-                *recognition.all_results,
-            ]
+            candidates = recognition_candidates(recognition)
             for candidate in candidates:
                 text = getattr(candidate, "text", None)
                 if text and (seconds := _parse_treatment_seconds(text)) is not None:

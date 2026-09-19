@@ -25,6 +25,7 @@ def main() -> None:
     if "--imports-only" in sys.argv:
         return
     from agent.core import CaseLoader
+    from agent.recognition_fallback import apply_full_image_fallbacks
     from maa.resource import Resource
     from maa.toolkit import Toolkit
     with __import__("os").add_dll_directory(str(ROOT / "maafw")):
@@ -32,6 +33,7 @@ def main() -> None:
     Toolkit.init_option(ROOT, {"logging": False, "save_draw": False, "save_on_error": False})
     resource = Resource()
     assert resource.post_bundle(ROOT / "resource/base").wait().succeeded, "Resource loading failed"
+    apply_full_image_fallbacks(resource)
     cases = CaseLoader().load()
     proc = subprocess.run([sys.executable, "-X", "utf8", "-m", "agent.worker", "--help"],
                           cwd=ROOT, capture_output=True, encoding="utf-8", timeout=30)

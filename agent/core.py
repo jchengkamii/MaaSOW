@@ -30,6 +30,7 @@ from maa.controller import (  # noqa: E402
 from maa.resource import Resource  # noqa: E402
 from maa.tasker import Tasker  # noqa: E402
 from maa.toolkit import Toolkit  # noqa: E402
+from agent.recognition_fallback import apply_full_image_fallbacks
 
 
 LogCallback = Callable[[str], None]
@@ -226,6 +227,8 @@ class AutomationEngine:
         job = resource.post_bundle(RESOURCE_DIR).wait()
         if not job.succeeded:
             raise RuntimeError(f"加载 Maa 资源失败：{RESOURCE_DIR}")
+        fallback_count = apply_full_image_fallbacks(resource)
+        self.log(f"已为 {fallback_count} 个节点启用区域优先、全图兜底识别")
         with self._state_lock:
             self._resource = resource
         self.log("Maa 资源加载完成")
