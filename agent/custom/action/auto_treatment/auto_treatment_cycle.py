@@ -256,7 +256,14 @@ def _adjust_or_reuse_and_start_treatment(
     recognition_timeout: float,
     max_adjustments: int,
     previous_seconds: int | None,
+    *,
+    skip_adjustment: bool = False,
 ) -> tuple[int, int | None, bool]:
+    if skip_adjustment:
+        _click_treatment_with_resource_refill(engine, recognition_timeout)
+        engine.log("首次弟子数量调节已完成，本批直接开始治疗")
+        return 0, previous_seconds, True
+
     current_seconds = _read_treatment_seconds(engine, controller)
     if previous_seconds is not None and current_seconds == previous_seconds:
         _click_treatment_with_resource_refill(engine, recognition_timeout)
@@ -320,6 +327,9 @@ def run(engine, case) -> str:
     treatment_batches = 0
     reused_batches = 0
     previous_treatment_seconds: int | None = None
+    # 游戏会记忆上一批选择的弟子数量。本次任务首次遇到可治疗面板时
+    # 调节一次，后续批次直接开始治疗，不再截图识别加减按钮或 OCR 时间。
+    selection_adjusted = False
     # 一旦开始或接管了一批治疗，必须等到明确点击“治疗完成”图标后，
     # 才允许用“连续无治疗图标”判定整个流程完成。
     active_treatment = False
@@ -342,7 +352,9 @@ def run(engine, case) -> str:
                     recognition_timeout,
                     max_adjustments,
                     previous_treatment_seconds,
+                    skip_adjustment=selection_adjusted,
                 )
+                selection_adjusted = True
                 total_adjustments += adjustments
                 treatment_batches += 1
                 reused_batches += int(reused)
@@ -378,7 +390,9 @@ def run(engine, case) -> str:
                     recognition_timeout,
                     max_adjustments,
                     previous_treatment_seconds,
+                    skip_adjustment=selection_adjusted,
                 )
+                selection_adjusted = True
                 total_adjustments += adjustments
                 treatment_batches += 1
                 reused_batches += int(reused)

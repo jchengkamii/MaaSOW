@@ -266,6 +266,46 @@ class AutoTreatmentTests(unittest.TestCase):
         pipeline.assert_any_call(engine, "自动治疗点击治疗按钮", 1.5)
         pipeline.assert_any_call(engine, "自动治疗资源不足补充全部", 1.2)
 
+    def test_later_batches_start_without_time_ocr_or_count_adjustment(self):
+        class Engine:
+            messages = []
+
+            def log(self, message):
+                self.messages.append(message)
+
+        engine = Engine()
+        with (
+            patch.object(
+                auto_treatment_cycle,
+                "_read_treatment_seconds",
+            ) as read_seconds,
+            patch.object(
+                auto_treatment_cycle,
+                "_adjust_and_start_treatment",
+            ) as adjust,
+            patch.object(
+                auto_treatment_cycle,
+                "_run_pipeline",
+                side_effect=_pipeline_without_resource_popup,
+            ) as pipeline,
+        ):
+            result = auto_treatment_cycle._adjust_or_reuse_and_start_treatment(
+                engine,
+                object(),
+                1800,
+                0.4,
+                1.5,
+                2000,
+                1800,
+                skip_adjustment=True,
+            )
+
+        self.assertEqual((0, 1800, True), result)
+        read_seconds.assert_not_called()
+        adjust.assert_not_called()
+        pipeline.assert_any_call(engine, "自动治疗点击治疗按钮", 1.5)
+        pipeline.assert_any_call(engine, "自动治疗资源不足补充全部", 1.2)
+
     def test_first_batch_at_exact_thirty_minutes_does_not_click_plus_or_minus(self):
         controller = object()
         with (
