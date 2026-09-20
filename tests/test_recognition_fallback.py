@@ -7,6 +7,10 @@ from types import SimpleNamespace
 import unittest
 import numpy as np
 
+# Direct execution in the native probe puts tests/, not the project root, on sys.path.
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from agent.recognition_fallback import (
     apply_full_image_fallbacks, recognition_candidates, with_full_image_fallback,
 )

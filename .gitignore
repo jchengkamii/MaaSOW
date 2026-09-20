@@ -29,9 +29,11 @@ config/mxu-*.json
 # Full source screenshots are not required at runtime
 reference_screenshots/
 
-# Local/third-party binary distribution (publish separately as a Release)
-maafw/
+# Track the frontend and bundled MaaFramework runtime used by the distribution.
+# Keep unrelated executables ignored.
 *.exe
+!/九霄仙府自动化测试.exe
+!/maafw/**/*.exe
 
 # Obsolete extension directory; Python cases now live under cases/<case_id>/
 extensions/
