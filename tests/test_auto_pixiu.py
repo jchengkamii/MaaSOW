@@ -11,6 +11,85 @@ from generate_interface import generate
 
 
 class PixiuTests(unittest.TestCase):
+    def test_recover_world_dismisses_panel_then_requires_two_clean_frames(self):
+        flow = Pixiu.__new__(Pixiu)
+        flow.engine = Mock()
+        flow.recovery_state = Mock(side_effect=['出征弹窗', '活动界面', '大世界默认态', '目标弹窗',
+                                                '大世界默认态', '大世界默认态'])
+        flow.screenshot = Mock(return_value=np.zeros((1300, 720, 3), dtype=np.uint8))
+        flow.click = Mock()
+        flow.pause = Mock()
+        flow.pipeline = Mock(return_value=True)
+        flow.recover_world()
+        self.assertEqual(2, flow.click.call_count)
+        self.assertEqual(6, flow.recovery_state.call_count)
+        flow.pipeline.assert_called_once_with('通用行军进入大地图')
+
+    def test_recovery_retries_same_attack_without_counting_failure(self):
+        flow = Mock()
+        flow.dispatch.side_effect = [RuntimeError('未识别'), 'handle']
+        flow.reconcile_pending_dispatch.return_value = False
+        with patch('agent.custom.action.auto_pixiu.Pixiu', return_value=flow):
+            run(Mock(), SimpleNamespace(parameters={'attack_count': 1}))
+        self.assertEqual(2, flow.dispatch.call_count)
+        flow.recover_world.assert_called_once()
+
+    def test_recovered_confirmed_dispatch_counts_without_reclick(self):
+        flow = Mock()
+        flow.dispatch.side_effect = TimeoutError('确认超时')
+        flow.reconcile_pending_dispatch.return_value = True
+        with patch('agent.custom.action.auto_pixiu.Pixiu', return_value=flow):
+            run(Mock(), SimpleNamespace(parameters={'attack_count': 1}))
+        flow.dispatch.assert_called_once()
+
+    def test_recovery_is_bounded_and_user_stop_is_not_retried(self):
+        for error, expected in [(RuntimeError('未识别'), 4), (InterruptedError('停止'), 1)]:
+            with self.subTest(error=error):
+                flow = Mock()
+                flow.dispatch.side_effect = error
+                flow.reconcile_pending_dispatch.return_value = False
+                with patch('agent.custom.action.auto_pixiu.Pixiu', return_value=flow):
+                    with self.assertRaises((RuntimeError, InterruptedError)):
+                        run(Mock(), SimpleNamespace(parameters={'attack_count': 1}))
+                self.assertEqual(expected, flow.dispatch.call_count)
+                if isinstance(error, InterruptedError):
+                    flow.recover_world.assert_not_called()
+
+    def test_pending_dispatch_confirmed_from_unique_new_row(self):
+        from agent.custom.action.march.state import MarchState
+        flow = Pixiu.__new__(Pixiu)
+        flow.engine = Mock()
+        flow.pause = Mock()
+        flow.pending_dispatch = True
+        a, b, c = np.random.default_rng(899).random((3, 24, 24, 3))
+        flow.pending_avatar = a
+        flow.pending_rows = [SquadRow(b, MarchState.RETURNING)]
+        flow.pending_baseline_reliable = True
+        flow.snapshot = Mock(return_value=(True, [SquadRow(c, MarchState.OUTBOUND)], 1))
+        self.assertTrue(flow.reconcile_pending_dispatch())
+        self.assertFalse(flow.pending_dispatch)
+        self.assertEqual(3, flow.snapshot.call_count)
+
+    def test_attack_waits_for_camera_to_settle_and_resets_on_missing_frame(self):
+        flow = Pixiu.__new__(Pixiu)
+        flow.screenshot = Mock(return_value=np.zeros((1300, 720, 3), dtype=np.uint8))
+        flow.pixiu_attack_point = Mock(side_effect=[(360, 887), (360, 954), None,
+                                                    (360, 954), (360, 953), (360, 954)])
+        flow.pause = Mock()
+        flow.click = Mock()
+        self.assertTrue(flow.attack_pixiu(2))
+        self.assertEqual(6, flow.pixiu_attack_point.call_count)
+        flow.click.assert_called_once_with(360, 954)
+
+    def test_missed_attack_retries_only_with_same_target_and_icon(self):
+        flow = self.panel_recovery_flow()
+        flow.panel = Mock(side_effect=[RuntimeError('气泡')] * 4 + [(2, [])])
+        flow.pixiu_attack_point.return_value = (360, 954)
+        flow.attack_pixiu = Mock(return_value=True)
+        self.assertEqual((2, []), flow.ready_dispatch_panel())
+        flow.attack_pixiu.assert_called_once_with(3)
+        flow.pipeline.assert_not_called()
+
     def test_pixiu_attack_uses_icon_without_caption_ocr(self):
         flow = Pixiu.__new__(Pixiu)
         flow.screenshot = Mock(return_value=np.zeros((1300, 720, 3), dtype=np.uint8))
@@ -44,6 +123,7 @@ class PixiuTests(unittest.TestCase):
         flow.pause = Mock()
         flow.pipeline = Mock(return_value=True)
         flow.click = Mock()
+        flow.pixiu_attack_point = Mock(return_value=None)
         return flow
 
     def test_panel_transition_waits_without_clicking_again(self):
@@ -422,6 +502,7 @@ class PixiuTests(unittest.TestCase):
         flow = Mock()
         flow.free_queue.return_value = True
         flow.dispatch.side_effect = TimeoutError('unconfirmed')
+        flow.reconcile_pending_dispatch.side_effect = TimeoutError('still unconfirmed')
         with patch('agent.custom.action.auto_pixiu.Pixiu', return_value=flow):
             with self.assertRaises(TimeoutError):
                 run(Mock(), SimpleNamespace(parameters={'attack_count': 2}))
