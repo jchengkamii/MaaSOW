@@ -48,6 +48,8 @@ def generate() -> dict:
             task_options.append(AUTO_STAMINA_OPTION)
         if case.id == "auto_treatment":
             task_options.append(TREATMENT_DURATION_OPTION)
+        if case.id == "auto_pixiu":
+            task_options.append("貔貅进攻次数")
         if task_options:
             task["option"] = task_options
         tasks.append(task)
@@ -61,7 +63,7 @@ def generate() -> dict:
         options[AUTO_STAMINA_OPTION] = {
             "type": "checkbox",
             "label": "",
-            "default_case": [],
+            "default_case": ["自动补体"],
             "cases": [
                 {
                     "name": "自动补体",
@@ -96,6 +98,18 @@ def generate() -> dict:
                     }
                 }
             },
+        }
+    if any(case.id == "auto_pixiu" for case in cases):
+        options["貔貅进攻次数"] = {
+            "type": "input", "label": "",
+            "description": "设置进攻次数，以确认小队出征计数",
+            "inputs": [{"name": "进攻次数", "label": "进攻次数",
+                        "default": "1", "pipeline_type": "int",
+                        "verify": r"^(?:[1-9]\d{0,3}|10000)$",
+                        "pattern_msg": "请输入 1–10000 的整数"}],
+            "pipeline_override": {"MXU执行外部用例": {
+                "custom_action_param": {"case_id": "auto_pixiu", "attack_count": "{进攻次数}"}
+            }},
         }
     if options:
         result["option"] = options

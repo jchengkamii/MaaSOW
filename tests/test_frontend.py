@@ -28,7 +28,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(5, len(cases))
+        self.assertEqual(6, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -48,6 +48,7 @@ class FrontendConfigurationTests(unittest.TestCase):
             "AutoTreatment/AutoTreatment.json",
             "CloseFacePopups/CloseFacePopups.json",
             "Common/AutoStamina.json",
+            "Common/March.json",
             "Common/Scene/InnerCity.json",
             "Interface/RunConfiguredCase.json",
         }
@@ -73,7 +74,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_task_directory_contains_only_expected_active_json(self):
         active = sorted(TASKS_DIR.rglob("*.json"))
-        self.assertEqual(5, len(active))
+        self.assertEqual(6, len(active))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(f"{data['id']}.json", path.name)

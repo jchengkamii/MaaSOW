@@ -23,6 +23,7 @@ def execute(
     case_id: str,
     auto_stamina: bool = False,
     target_minutes: int | None = None,
+    attack_count: int | None = None,
 ) -> int:
     started = time.monotonic()
     try:
@@ -37,6 +38,14 @@ def execute(
                 raise RuntimeError("治疗目标分钟数必须在 1–10000 之间")
             parameters = dict(case.parameters or {})
             parameters["target_seconds"] = target_minutes * 60
+            case = replace(case, parameters=parameters)
+
+        if attack_count is not None:
+            from agent.custom.action.auto_pixiu import attack_count as validate_count
+            if case.id != "auto_pixiu":
+                raise RuntimeError("进攻次数参数只能用于自动打貔貅")
+            parameters = dict(case.parameters or {})
+            parameters["attack_count"] = validate_count(attack_count)
             case = replace(case, parameters=parameters)
 
         print(f"[Worker] 开始执行：{case.name}", flush=True)
@@ -85,11 +94,13 @@ def main() -> int:
         type=int,
         help="自动治疗的单批目标分钟数",
     )
+    parser.add_argument("--attack-count", type=int, help="自动打貔貅的进攻次数")
     args = parser.parse_args()
     return execute(
         args.case_id.strip(),
         auto_stamina=args.auto_stamina,
         target_minutes=args.target_minutes,
+        attack_count=args.attack_count,
     )
 
 

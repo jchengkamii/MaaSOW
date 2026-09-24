@@ -1,0 +1,39 @@
+{
+  "通用行军进入大地图": {
+    "next": ["通用行军确认大地图", "通用行军内城转大地图", "通用行军黄色返回", "通用行军蓝色返回"],
+    "timeout": 45000
+  },
+  "通用行军确认大地图": {
+    "recognition": "And",
+    "all_of": ["自动治疗确认大世界"]
+  },
+  "通用行军内城转大地图": {
+    "recognition": "And",
+    "all_of": ["内城主界面左下特征", "内城主界面右下特征"],
+    "box_index": 1,
+    "max_hit": 3,
+    "action": "Click",
+    "post_delay": 800,
+    "next": ["通用行军进入大地图"]
+  },
+  "通用行军黄色返回": {
+    "recognition": "TemplateMatch",
+    "template": ["AutoRadar/return_yellow_reference.png", "AutoRadar/return_yellow_runtime.png"],
+    "threshold": 0.68,
+    "roi": [0, -180, 160, 180],
+    "action": "Click",
+    "max_hit": 6,
+    "post_delay": 700,
+    "next": ["通用行军进入大地图"]
+  },
+  "通用行军蓝色返回": {
+    "recognition": "TemplateMatch",
+    "template": ["AutoRadar/return_blue_reference.png", "AutoRadar/return_blue_runtime.png"],
+    "threshold": 0.68,
+    "roi": [0, -180, 160, 180],
+    "action": "Click",
+    "max_hit": 6,
+    "post_delay": 700,
+    "next": ["通用行军进入大地图"]
+  }
+}

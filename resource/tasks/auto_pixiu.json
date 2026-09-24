@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "auto_pixiu",
+  "name": "自动打貔貅",
+  "group": "日常任务",
+  "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。",
+  "order": 70,
+  "default_checked": false,
+  "enabled": true,
+  "handler": "python",
+  "extension": "agent.custom.action.auto_pixiu:run",
+  "auto_stamina": true,
+  "parameters": {
+    "attack_count": 1
+  }
+}

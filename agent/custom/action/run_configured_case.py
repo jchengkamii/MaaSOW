@@ -46,18 +46,34 @@ def parse_case_request(raw: str) -> tuple[str, int | None]:
     return value.strip(), target_minutes
 
 
+def parse_attack_count(raw: str) -> int | None:
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(value, dict) or "attack_count" not in value:
+        return None
+    from agent.custom.action.auto_pixiu import attack_count
+    if value.get("case_id") != "auto_pixiu":
+        raise ValueError("进攻次数参数只能用于自动打貔貅")
+    return attack_count(value["attack_count"])
+
+
 def worker_command(case_id: str) -> list[str]:
     return worker_command_with_options(case_id, auto_stamina=False)
 
 
 def worker_command_with_options(
-    case_id: str, auto_stamina: bool, target_minutes: int | None = None
+    case_id: str, auto_stamina: bool, target_minutes: int | None = None,
+    attack_count: int | None = None
 ) -> list[str]:
     command = [sys.executable, "-u", "-m", "agent.worker", "--case-id", case_id]
     if auto_stamina:
         command.append("--auto-stamina")
     if target_minutes is not None:
         command.extend(["--target-minutes", str(target_minutes)])
+    if attack_count is not None:
+        command.extend(["--attack-count", str(attack_count)])
     return command
 
 
@@ -82,6 +98,7 @@ class RunConfiguredCase(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:
             case_id, target_minutes = parse_case_request(argv.custom_action_param)
+            attack_count = parse_attack_count(argv.custom_action_param)
         except Exception as exc:
             print(f"[Agent] 用例参数错误：{exc}", flush=True)
             return False
@@ -93,6 +110,8 @@ class RunConfiguredCase(CustomAction):
             return False
 
         suffix_parts = []
+        if attack_count is not None:
+            suffix_parts.append(f"进攻 {attack_count} 次")
         if use_auto_stamina:
             suffix_parts.append("自动补体已启用")
         if target_minutes is not None:
@@ -105,7 +124,7 @@ class RunConfiguredCase(CustomAction):
         try:
             process = subprocess.Popen(
                 worker_command_with_options(
-                    case_id, use_auto_stamina, target_minutes
+                    case_id, use_auto_stamina, target_minutes, attack_count
                 ),
                 cwd=PROJECT_DIR,
                 env=environment,

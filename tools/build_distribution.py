@@ -12,7 +12,7 @@ def main() -> None:
     subprocess.run([sys.executable, "-X", "utf8", str(ROOT / "generate_interface.py")], cwd=ROOT, check=True)
     subprocess.run([sys.executable, "-X", "utf8", "-m", "unittest", "discover", "-s", "tests"], cwd=ROOT, check=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    stage = ROOT / "build" / stamp / "release-1.0.0"
+    stage = ROOT / "build" / stamp / "release-1.0.1"
     stage.mkdir(parents=True)
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo", "*.log")
     for folder in ("agent", "resource", "maafw", "licenses"):
@@ -26,7 +26,7 @@ def main() -> None:
     shutil.copy2(ROOT / "tools/DISTRIBUTION_README.md", stage / "使用说明.md")
     out = ROOT / "dist"
     out.mkdir(exist_ok=True)
-    archive = out / "release-1.0.0.zip"
+    archive = out / "release-1.0.1.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         for p in sorted(stage.rglob("*")):
             if p.is_file():

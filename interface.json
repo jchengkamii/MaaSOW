@@ -4,7 +4,7 @@
   "label": "九霄仙府自动化测试",
   "title": "九霄仙府自动化测试 · MXU",
   "icon": "resource/app_icon.png",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。",
   "welcome": "resource/locales/interface/WELCOME_zh_cn.md",
   "license": "仅供本地学习与自动化测试使用。MXU 遵循 AGPL-3.0。",

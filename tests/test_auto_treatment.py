@@ -32,7 +32,7 @@ class AutoTreatmentTests(unittest.TestCase):
         self.assertEqual(1800, case.parameters["target_seconds"])
         self.assertEqual(10.0, case.parameters["poll_interval"])
         self.assertEqual(3, case.parameters["empty_confirmations"])
-        self.assertFalse(case.default_checked)
+        self.assertTrue(case.default_checked)
         self.assertTrue(
             (CUSTOM_ACTION_DIR / "auto_treatment" / "auto_treatment.py").is_file()
         )

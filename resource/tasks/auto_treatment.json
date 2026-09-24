@@ -5,7 +5,7 @@
   "group": "日常任务",
   "description": "循环治疗伤兵：按设置的单次目标时长治疗，仙盟互助后等待完成并自动收取",
   "order": 65,
-  "default_checked": false,
+  "default_checked": true,
   "enabled": true,
   "handler": "python",
   "extension": "agent.custom.action.auto_treatment.auto_treatment_cycle:run",

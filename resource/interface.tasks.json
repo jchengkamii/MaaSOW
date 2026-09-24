@@ -21,7 +21,7 @@
       "name": "close_face_popups",
       "label": "关闭拍脸弹窗",
       "entry": "MXU执行外部用例",
-      "default_check": true,
+      "default_check": false,
       "description": "循环关闭右上角带×或可点击遮罩关闭的拍脸弹窗，断言内城完整界面加载完成",
       "group": [
         "group_01"
@@ -67,7 +67,7 @@
       "name": "auto_treatment",
       "label": "自动治疗",
       "entry": "MXU执行外部用例",
-      "default_check": false,
+      "default_check": true,
       "description": "循环治疗伤兵：按设置的单次目标时长治疗，仙盟互助后等待完成并自动收取",
       "group": [
         "group_02"
@@ -91,7 +91,7 @@
     },
     {
       "name": "auto_help",
-      "label": "▶ 开启自动帮助",
+      "label": "开启自动帮助（需要单独执行）",
       "entry": "MXU执行外部用例",
       "default_check": false,
       "description": "启动独立后台监视；按钮每次出现只点击一次，其他用例执行期间自动暂停",
@@ -113,8 +113,35 @@
       }
     },
     {
+      "name": "auto_pixiu",
+      "label": "自动打貔貅",
+      "entry": "MXU执行外部用例",
+      "default_check": false,
+      "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。",
+      "group": [
+        "group_02"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ],
+      "resource": [
+        "Default"
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_pixiu"
+          }
+        }
+      },
+      "option": [
+        "自动补体",
+        "貔貅进攻次数"
+      ]
+    },
+    {
       "name": "stop_auto_help",
-      "label": "■ 停止自动帮助",
+      "label": "停止自动帮助（需要单独执行）",
       "entry": "MXU执行外部用例",
       "default_check": false,
       "description": "停止由“开启自动帮助”启动的后台监视进程",
@@ -137,6 +164,24 @@
     }
   ],
   "option": {
+    "自动补体": {
+      "type": "checkbox",
+      "label": "",
+      "default_case": [
+        "自动补体"
+      ],
+      "cases": [
+        {
+          "name": "自动补体",
+          "label": "自动补体",
+          "pipeline_override": {
+            "通用自动补体开关": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    },
     "自动治疗时长": {
       "type": "input",
       "label": "",
@@ -157,6 +202,29 @@
           "custom_action_param": {
             "case_id": "auto_treatment",
             "target_minutes": "{目标分钟}"
+          }
+        }
+      }
+    },
+    "貔貅进攻次数": {
+      "type": "input",
+      "label": "",
+      "description": "设置进攻次数，以确认小队出征计数",
+      "inputs": [
+        {
+          "name": "进攻次数",
+          "label": "进攻次数",
+          "default": "1",
+          "pipeline_type": "int",
+          "verify": "^(?:[1-9]\\d{0,3}|10000)$",
+          "pattern_msg": "请输入 1–10000 的整数"
+        }
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_pixiu",
+            "attack_count": "{进攻次数}"
           }
         }
       }
