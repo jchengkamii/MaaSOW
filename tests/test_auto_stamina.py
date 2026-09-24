@@ -26,6 +26,25 @@ class _Tasker:
 
 
 class AutoStaminaTests(unittest.TestCase):
+    def test_items_and_actions_are_bound_to_the_same_row(self):
+        for amount in (10, 50, 100):
+            for prefix in ('通用自动补体', '通用自动补体向下后'):
+                item_name = f'{prefix}查找{amount}体力'
+                item = self.pipeline[item_name]
+                self.assertEqual('OCR', item['recognition'])
+                self.assertEqual(f'^{amount}体力$', item['expected'])
+                self.assertEqual('march_zh', item['model'])
+                batch = self.pipeline[f'{prefix}批量使用{amount}体力']
+                self.assertEqual(item_name, batch['roi'])
+                self.assertEqual('march_zh', batch['model'])
+                # Replay logged item title at (183,845), x12 at (365,876):
+                # the expected quantity lies inside the relative row, while
+                # the misread cooldown X4 at (186,620) lies outside it.
+                dx, dy, dw, dh = batch['roi_offset']
+                x, y, w, h = 183 + dx, 845 + dy, 89 + dw, 30 + dh
+                self.assertTrue(x <= 365 < x+w and y <= 876 < y+h)
+                self.assertFalse(x <= 186 < x+w and y <= 620 < y+h)
+
     @classmethod
     def setUpClass(cls):
         cls.pipeline_path = (

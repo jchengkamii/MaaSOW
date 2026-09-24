@@ -3,29 +3,50 @@
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
-    "roi": [50, 650, 500, 480],
+    "roi": [
+      50,
+      650,
+      500,
+      480
+    ],
     "action": "Click",
     "post_delay": 700,
-    "next": ["通用自动补体等待恢复体力界面"]
+    "next": [
+      "通用自动补体等待恢复体力界面"
+    ]
   },
   "通用识别补充体力按钮": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
-    "roi": [50, 650, 500, 480]
+    "roi": [
+      50,
+      650,
+      500,
+      480
+    ]
   },
   "通用自动补体点击补充体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
-    "roi": [50, 650, 500, 480],
+    "roi": [
+      50,
+      650,
+      500,
+      480
+    ],
     "action": "Click",
     "post_delay": 700,
     "max_hit": 20,
-    "next": ["通用自动补体等待恢复体力界面"]
+    "next": [
+      "通用自动补体等待恢复体力界面"
+    ]
   },
   "通用自动补体等待恢复体力界面": {
-    "next": ["通用自动补体确认恢复体力界面"],
+    "next": [
+      "通用自动补体确认恢复体力界面"
+    ],
     "rate_limit": 250,
     "timeout": 8000
   },
@@ -33,17 +54,32 @@
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/recover_stamina_title.png",
     "threshold": 0.7,
-    "roi": [150, 50, 420, 260],
-    "next": ["通用自动补体列表复位"]
+    "roi": [
+      150,
+      50,
+      420,
+      260
+    ],
+    "next": [
+      "通用自动补体列表复位"
+    ]
   },
   "通用自动补体列表复位": {
     "recognition": "DirectHit",
     "action": "Swipe",
-    "begin": [350, 520],
-    "end": [350, 900],
+    "begin": [
+      350,
+      520
+    ],
+    "end": [
+      350,
+      900
+    ],
     "duration": 350,
     "post_delay": 500,
-    "next": ["通用自动补体选择来源"]
+    "next": [
+      "通用自动补体选择来源"
+    ]
   },
   "通用自动补体选择来源": {
     "next": [
@@ -56,124 +92,239 @@
     ],
     "rate_limit": 200,
     "timeout": 2500,
-    "on_error": ["通用自动补体无可用来源关闭"]
+    "on_error": [
+      "通用自动补体无可用来源关闭"
+    ]
   },
   "通用自动补体收取逍遥剑仙": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/claim_enabled.png",
     "threshold": 0.75,
-    "roi": [450, 330, 240, 190],
+    "roi": [
+      450,
+      330,
+      240,
+      190
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体收取每日75体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/claim_enabled.png",
     "threshold": 0.75,
-    "roi": [450, 470, 240, 190],
+    "roi": [
+      450,
+      470,
+      240,
+      190
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体查找10体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_10.png",
-    "threshold": 0.72,
-    "roi": [35, 560, 180, 550],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体批量使用10体力",
       "通用自动补体单次使用10体力",
       "通用自动补体查找50体力"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^10体力$",
+    "threshold": 0.9
   },
   "通用自动补体批量使用10体力": {
     "recognition": "OCR",
     "roi": "通用自动补体查找10体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体单次使用10体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体查找10体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体查找50体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_50.png",
-    "threshold": 0.72,
-    "roi": [35, 560, 180, 600],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体批量使用50体力",
       "通用自动补体单次使用50体力",
       "通用自动补体查找100体力"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^50体力$",
+    "threshold": 0.9
   },
   "通用自动补体批量使用50体力": {
     "recognition": "OCR",
     "roi": "通用自动补体查找50体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体单次使用50体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体查找50体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体查找100体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_100.png",
-    "threshold": 0.72,
-    "roi": [35, 560, 180, 610],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体批量使用100体力",
       "通用自动补体单次使用100体力",
       "通用自动补体向下查找100体力"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^100体力$",
+    "threshold": 0.9
   },
   "通用自动补体批量使用100体力": {
     "recognition": "OCR",
     "roi": "通用自动补体查找100体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体单次使用100体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体查找100体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体向下查找100体力": {
     "recognition": "DirectHit",
     "action": "Swipe",
-    "begin": [350, 940],
-    "end": [350, 670],
+    "begin": [
+      350,
+      940
+    ],
+    "end": [
+      350,
+      670
+    ],
     "duration": 300,
     "post_delay": 500,
     "next": [
@@ -182,100 +333,195 @@
     ]
   },
   "通用自动补体向下后查找10体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_10.png",
-    "threshold": 0.72,
-    "roi": [35, 350, 180, 750],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体向下后批量使用10体力",
       "通用自动补体向下后单次使用10体力",
       "通用自动补体向下后查找50体力"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^10体力$",
+    "threshold": 0.9
   },
   "通用自动补体向下后批量使用10体力": {
     "recognition": "OCR",
     "roi": "通用自动补体向下后查找10体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体向下后单次使用10体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找10体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体向下后查找50体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_50.png",
-    "threshold": 0.72,
-    "roi": [35, 350, 180, 750],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体向下后批量使用50体力",
       "通用自动补体向下后单次使用50体力",
       "通用自动补体向下后查找100体力"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^50体力$",
+    "threshold": 0.9
   },
   "通用自动补体向下后批量使用50体力": {
     "recognition": "OCR",
     "roi": "通用自动补体向下后查找50体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体向下后单次使用50体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找50体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体向下后查找100体力": {
-    "recognition": "TemplateMatch",
-    "template": "Common/AutoStamina/stamina_item_100.png",
-    "threshold": 0.72,
-    "roi": [35, 450, 180, 650],
+    "recognition": "OCR",
+    "roi": [
+      175,
+      400,
+      170,
+      720
+    ],
     "next": [
       "通用自动补体向下后批量使用100体力",
       "通用自动补体向下后单次使用100体力",
       "通用自动补体无可用来源关闭"
-    ]
+    ],
+    "model": "march_zh",
+    "expected": "^100体力$",
+    "threshold": 0.9
   },
   "通用自动补体向下后批量使用100体力": {
     "recognition": "OCR",
     "roi": "通用自动补体向下后查找100体力",
-    "roi_offset": [220, -10, 120, 20],
+    "roi_offset": [
+      170,
+      15,
+      20,
+      35
+    ],
     "expected": "^[xX][1-9]\\d*$",
-    "replace": [["O", "0"], ["o", "0"]],
+    "replace": [
+      [
+        "O",
+        "0"
+      ],
+      [
+        "o",
+        "0"
+      ]
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ],
+    "model": "march_zh",
+    "threshold": 0.9
   },
   "通用自动补体向下后单次使用100体力": {
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/use_enabled.png",
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找100体力",
-    "roi_offset": [410, -10, 100, 20],
+    "roi_offset": [
+      310,
+      10,
+      40,
+      40
+    ],
     "action": "Click",
     "post_delay": 500,
-    "next": ["通用自动补体等待恭喜获得"]
+    "next": [
+      "通用自动补体等待恭喜获得"
+    ]
   },
   "通用自动补体等待恭喜获得": {
-    "next": ["通用自动补体关闭恭喜获得"],
+    "next": [
+      "通用自动补体关闭恭喜获得"
+    ],
     "rate_limit": 250,
     "timeout": 8000
   },
@@ -283,14 +529,28 @@
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/reward_title.png",
     "threshold": 0.68,
-    "roi": [120, 180, 500, 300],
+    "roi": [
+      120,
+      180,
+      500,
+      300
+    ],
     "action": "Click",
-    "target": [20, 930, 80, 100],
+    "target": [
+      20,
+      930,
+      80,
+      100
+    ],
     "post_delay": 500,
-    "next": ["通用自动补体等待返回恢复体力界面"]
+    "next": [
+      "通用自动补体等待返回恢复体力界面"
+    ]
   },
   "通用自动补体等待返回恢复体力界面": {
-    "next": ["通用自动补体关闭恢复体力界面"],
+    "next": [
+      "通用自动补体关闭恢复体力界面"
+    ],
     "rate_limit": 250,
     "timeout": 8000
   },
@@ -298,13 +558,23 @@
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/recover_stamina_close.png",
     "threshold": 0.72,
-    "roi": [570, 50, 140, 240],
+    "roi": [
+      570,
+      50,
+      140,
+      240
+    ],
     "action": "Click",
     "post_delay": 600,
-    "next": ["通用自动补体检查是否完成"]
+    "next": [
+      "通用自动补体检查是否完成"
+    ]
   },
   "通用自动补体检查是否完成": {
-    "next": ["通用自动补体点击补充体力", "通用自动补体完成"],
+    "next": [
+      "通用自动补体点击补充体力",
+      "通用自动补体完成"
+    ],
     "rate_limit": 250,
     "timeout": 2500
   },
@@ -315,7 +585,12 @@
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/recover_stamina_close.png",
     "threshold": 0.72,
-    "roi": [570, 50, 140, 240],
+    "roi": [
+      570,
+      50,
+      140,
+      240
+    ],
     "action": "Click",
     "post_delay": 500
   }

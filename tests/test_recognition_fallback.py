@@ -87,6 +87,9 @@ def native_probe():
     assert apply_full_image_fallbacks(resource) > 0
     for name, original in before.items():
         current = resource.get_node_data(name)
+        if name.startswith("通用自动补体"):
+            assert current == original, name
+            continue
         for key, value in original.items():
             if key != "recognition":
                 assert current[key] == value, (name, key)

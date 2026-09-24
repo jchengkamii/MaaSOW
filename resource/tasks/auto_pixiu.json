@@ -3,7 +3,7 @@
   "id": "auto_pixiu",
   "name": "自动打貔貅",
   "group": "日常任务",
-  "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。",
+  "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。目前不支持大貔貅。",
   "order": 75,
   "default_checked": true,
   "enabled": true,
