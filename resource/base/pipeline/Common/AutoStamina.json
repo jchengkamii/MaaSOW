@@ -171,7 +171,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体单次使用10体力": {
     "recognition": "TemplateMatch",
@@ -179,10 +179,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体查找10体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
@@ -233,7 +233,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体单次使用50体力": {
     "recognition": "TemplateMatch",
@@ -241,10 +241,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体查找50体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
@@ -295,7 +295,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体单次使用100体力": {
     "recognition": "TemplateMatch",
@@ -303,10 +303,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体查找100体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
@@ -375,7 +375,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体向下后单次使用10体力": {
     "recognition": "TemplateMatch",
@@ -383,10 +383,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找10体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
@@ -437,7 +437,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体向下后单次使用50体力": {
     "recognition": "TemplateMatch",
@@ -445,10 +445,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找50体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
@@ -499,7 +499,7 @@
       "通用自动补体等待恭喜获得"
     ],
     "model": "march_zh",
-    "threshold": 0.9
+    "threshold": 0.8
   },
   "通用自动补体向下后单次使用100体力": {
     "recognition": "TemplateMatch",
@@ -507,10 +507,10 @@
     "threshold": 0.75,
     "roi": "通用自动补体向下后查找100体力",
     "roi_offset": [
-      310,
-      10,
-      40,
-      40
+      290,
+      -5,
+      110,
+      75
     ],
     "action": "Click",
     "post_delay": 500,
