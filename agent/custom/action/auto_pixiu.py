@@ -371,12 +371,14 @@ class Pixiu(March):
         # transition failures: never re-click attack or dispatch speculatively.
         def wait_panel():
             for attempt in range(4):
+                image = self.screenshot()
                 try:
-                    return self.panel(self.screenshot())
+                    return self.panel(image)
                 except InterruptedError:
                     raise
                 except RuntimeError:
                     if attempt == 3:
+                        self.record_panel_failure(image)
                         raise
                     self.pause(.4)
 
@@ -412,6 +414,19 @@ class Pixiu(March):
             if not self.pipeline("通用行军进入大地图"):
                 raise RuntimeError("补体后未确认出征面板，且无法返回大世界") from exc
             raise RelocateAfterStamina("进攻阶段已补体，面板已关闭，重新定位目标") from exc
+
+    def record_panel_failure(self, image):
+        # Preserve the exact failed frame, not a later screenshot after recovery.
+        from pathlib import Path
+        from PIL import Image
+        try:
+            folder = Path(__file__).resolve().parents[3] / 'debug'
+            folder.mkdir(parents=True, exist_ok=True)
+            path = folder / 'pixiu_panel_failure.png'
+            Image.fromarray(image[:, :, ::-1]).save(path)
+            self.engine.log(f"出征面板识别失败原图已保存：{path}，尺寸 {image.shape[1]}x{image.shape[0]}")
+        except Exception as exc:
+            self.engine.log(f"保存面板诊断截图失败：{exc}")
 
     def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
         existing = existing or []

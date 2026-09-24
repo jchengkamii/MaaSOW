@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import struct
 import threading
 import unittest
 
@@ -29,12 +30,15 @@ class _Tasker:
 
 class AutoStaminaTests(unittest.TestCase):
     def test_use_region_fits_template_and_logged_batch_is_accepted(self):
-        from PIL import Image
         for amount in (10, 50, 100):
             for prefix in ('通用自动补体', '通用自动补体向下后'):
                 node = self.pipeline[f'{prefix}单次使用{amount}体力']
-                with Image.open(RESOURCE_DIR / 'image' / node['template']) as template:
-                    tw, th = template.size
+                # PNG stores width and height in its first (IHDR) chunk.
+                with (RESOURCE_DIR / 'image' / node['template']).open('rb') as template:
+                    header = template.read(24)
+                self.assertEqual(b'\x89PNG\r\n\x1a\n', header[:8])
+                self.assertEqual(b'IHDR', header[12:16])
+                tw, th = struct.unpack('>II', header[16:24])
                 dx, dy, dw, dh = node['roi_offset']
                 # Smallest title observed in the failure: 88 x 28, at (183,846).
                 width, height = 88 + dw, 28 + dh

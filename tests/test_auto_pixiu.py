@@ -120,6 +120,7 @@ class PixiuTests(unittest.TestCase):
         flow.engine = Mock(auto_stamina=True)
         flow.tasker = Mock()
         flow.screenshot = Mock()
+        flow.record_panel_failure = Mock()
         flow.pause = Mock()
         flow.pipeline = Mock(return_value=True)
         flow.click = Mock()

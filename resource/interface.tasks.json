@@ -42,7 +42,7 @@
     },
     {
       "name": "auto_radar",
-      "label": "自动雷达",
+      "label": "自动雷达（没做完）",
       "entry": "MXU执行外部用例",
       "default_check": false,
       "description": "从内城或大世界进入执事堂，优先领取和一键执行，再逐个处理雷达事件",
@@ -140,7 +140,7 @@
       "label": "自动打貔貅",
       "entry": "MXU执行外部用例",
       "default_check": true,
-      "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。",
+      "description": "查找祥瑞聚宝活动，搜索灵貅，空闲队列自动出征；次数按确认出征计数。目前不支持大貔貅。",
       "group": [
         "group_02"
       ],
