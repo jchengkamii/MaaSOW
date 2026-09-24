@@ -5,6 +5,7 @@
   "title": "九霄小助手 · MXU macOS",
   "icon": "resource/app_icon.png",
   "version": "1.0.1",
+  "github": "https://github.com/jchengkamii/MaaSOW",
   "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。\n\n使用中如有问题请飞书联系李嘉诚",
   "welcome": "resource/locales/interface/WELCOME_zh_cn.md",
   "license": "仅供本地学习与自动化测试使用。MXU 遵循 AGPL-3.0。",

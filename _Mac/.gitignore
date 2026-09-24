@@ -5,8 +5,10 @@ __pycache__/
 cache/
 debug/
 dist/
-mxu
-maafw/
+/mxu
+/maafw/
 .research/
 config/mxu-runtime.json
 config/mxu-*.json
+build/
+.test_node/

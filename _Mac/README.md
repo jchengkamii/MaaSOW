@@ -50,3 +50,8 @@ Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务�
 - 官方控制方式说明：<https://github.com/MaaXYZ/MaaFramework/blob/main/docs/en_us/2.4-ControlMethods.md>。
 
 `vendor/manifest.json` 记录下载地址及官方摘要；原版许可随归档保留，安装时解压至 `licenses/`。
+
+## 本次同步与自动更新
+
+最新主工程业务修复已同步，来源与文件校验见 `同步记录.md`、`source_snapshot.json`。
+同时提供 Mac 脚本更新包和定制 MXU 源码；自动更新设置页需要在 Mac 上运行 `构建定制MXU.command` 编译定制前端，详见 `tools/AUTO_UPDATE.md`。本包默认仍为官方 MXU 2.6.1，不宣称已启用该定制设置页。

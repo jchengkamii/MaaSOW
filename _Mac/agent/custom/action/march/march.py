@@ -50,11 +50,15 @@ class SquadRow:
 
 def new_dispatched_row(existing, rows, count):
     """Identify one added active row using same-sized HUD portraits only."""
-    if count != len(existing) + 1 or len(rows) != count:
+    if not 1 <= count <= len(existing) + 1 or len(rows) != count:
         return None
     assigned = set()
     for old in existing:
         matches = [i for i, row in enumerate(rows) if similarity(old.avatar, row.avatar) >= .80]
+        # A known returning squad can arrive while the activity is being opened
+        # or the new march is being confirmed. It need not remain in the HUD.
+        if not matches and old.status == MarchState.RETURNING:
+            continue
         if len(matches) != 1 or matches[0] in assigned:
             return None
         assigned.add(matches[0])
@@ -440,7 +444,7 @@ class March:
                     previous_added = added
                     if added_confirmations >= 3:
                         confirmed = added
-                        method = "原队伍全部保留且唯一新增行军队伍，连续三帧确认"
+                        method = "旧队伍匹配（允许已知返回队伍消失）且唯一新增行军队伍，连续三帧确认"
             if confirmed is not None:
                 handle.avatar = confirmed.avatar
                 handle.last_count = count

@@ -13,6 +13,8 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+CUSTOM_MXU_REVISION = "115fcb39d75718f8bd53e76511322660b8af00ec"
+CUSTOM_MXU_VERSION = "2.4.5"
 REQUIRED_LIBS = ("libMaaFramework.dylib", "libMaaToolkit.dylib", "libMaaAgentClient.dylib", "libMaaAgentServer.dylib", "libMaaMacOSControlUnit.dylib")
 
 
@@ -115,12 +117,30 @@ def verify_installed(root=ROOT):
         raise RuntimeError("尚未安装 MXU，请先运行 使用前环境准备.command。")
     state = json.loads(marker.read_text(encoding="utf-8"))
     manifest = json.loads((root / "vendor/manifest.json").read_text(encoding="utf-8"))
-    if state.get("architecture") != architecture() or any(state.get(k) != manifest[k] for k in ("mxu_version", "maafw_version")):
+    custom = state.get("custom_mxu_revision") == CUSTOM_MXU_REVISION and state.get("mxu_version") == CUSTOM_MXU_VERSION
+    mxu_matches = custom or (not state.get("custom_mxu_revision") and state.get("mxu_version") == manifest["mxu_version"])
+    if state.get("architecture") != architecture() or not mxu_matches or state.get("maafw_version") != manifest["maafw_version"]:
         raise RuntimeError("MXU 版本或 Python 架构不匹配，请重新运行环境准备脚本。")
     for name in ("mxu", *("maafw/" + n for n in REQUIRED_LIBS)):
         path = root / name
         if not path.is_file() or sha256(path) != state.get("sha256", {}).get(name):
             raise RuntimeError(f"运行文件缺失或已改变：{name}，请重新运行环境准备脚本。")
+
+
+def install_custom_binary(binary, root=ROOT):
+    root = Path(root).resolve()
+    binary = Path(binary).resolve()
+    verify_macho(binary, architecture())
+    verify_installed(root)
+    target = root / "mxu"
+    shutil.copy2(binary, target)
+    target.chmod(0o755)
+    marker = root / "config/mxu-runtime.json"
+    state = json.loads(marker.read_text(encoding="utf-8"))
+    state["mxu_version"] = CUSTOM_MXU_VERSION
+    state["custom_mxu_revision"] = CUSTOM_MXU_REVISION
+    state["sha256"]["mxu"] = sha256(target)
+    marker.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

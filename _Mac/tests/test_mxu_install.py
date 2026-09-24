@@ -35,6 +35,19 @@ class MxuInstallTests(unittest.TestCase):
                         installer.verify_macho(root / "maafw" / name, arch)
                     self.assertTrue((root / "licenses/MXU-LICENSE").is_file())
                     self.assertTrue((root / "licenses/MaaFramework-LICENSE.md").is_file())
+            custom = root / "custom-mxu"
+            custom.write_bytes((root / "mxu").read_bytes())
+            with patch.object(installer, "architecture", return_value="x86_64"):
+                installer.install_custom_binary(custom, root)
+                installer.verify_installed(root)
+                state = json.loads((root / "config/mxu-runtime.json").read_text(encoding="utf-8"))
+                self.assertEqual(installer.CUSTOM_MXU_REVISION, state["custom_mxu_revision"])
+                self.assertEqual("2.4.5", state["mxu_version"])
+                original = (root / "mxu").read_bytes()
+                custom.write_bytes(b"not a Mac executable")
+                with self.assertRaises(RuntimeError):
+                    installer.install_custom_binary(custom, root)
+                self.assertEqual(original, (root / "mxu").read_bytes())
             (root / "mxu").write_bytes(b"bad")
             with patch.object(installer, "architecture", return_value="x86_64"), self.assertRaisesRegex(RuntimeError, "运行文件"):
                 installer.verify_installed(root)

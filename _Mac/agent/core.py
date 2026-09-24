@@ -399,10 +399,13 @@ class AutomationEngine:
         if self.stop_event.is_set():
             raise InterruptedError("用户停止执行")
         if not flow.succeeded:
-            self.log("未检测到可处理的补充体力界面")
+            self.log("自动补体流程未完成：可能是入口、道具使用或领取结果确认失败，请查看最后执行节点")
             return False
 
-        still_insufficient = tasker.post_task("通用识别补充体力按钮").wait()
+        # Absence is expected after success; do not wait the default 20 seconds.
+        still_insufficient = tasker.post_task("通用识别补充体力按钮", {
+            "通用识别补充体力按钮": {"timeout": 1200, "rate_limit": 200}
+        }).wait()
         if self.stop_event.is_set():
             raise InterruptedError("用户停止执行")
         if still_insufficient.succeeded:

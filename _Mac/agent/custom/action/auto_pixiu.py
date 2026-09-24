@@ -4,9 +4,10 @@ from __future__ import annotations
 import re
 import time
 
-from maa.pipeline import JRecognitionType, JTemplateMatch
+from maa.pipeline import JAnd, JRecognitionType, JTemplateMatch
 
-from agent.custom.action.march.march import March, similarity
+from agent.custom.action.march.march import March, similarity, new_dispatched_row
+from agent.custom.action.march.state import MarchState
 
 
 def attack_count(value):
@@ -21,6 +22,10 @@ class NoFreeQueue(RuntimeError):
 
 class ZeroDisciples(RuntimeError):
     """The selected squad has no disciples; no dispatch click was issued."""
+
+
+class RelocateAfterStamina(RuntimeError):
+    """Stamina was replenished before dispatch, but the panel is now closed."""
 
 
 class Pixiu(March):
@@ -77,10 +82,121 @@ class Pixiu(March):
         return int(match[1]) == 0
 
     def text_button(self, text, timeout=8):
+        if text == "进攻":
+            return self.attack_pixiu(timeout)
         # Common march calls this after selecting the squad and auto-deploying.
         if text == "出征" and self.zero_disciples():
             raise ZeroDisciples("弟子数量为 0，等待队伍返回")
-        return super().text_button(text, timeout=timeout)
+        if text == "出征":
+            # Mark before the click: a controller exception can be ambiguous.
+            self.pending_dispatch = True
+        result = super().text_button(text, timeout=timeout)
+        if text == "出征" and not result:
+            self.pending_dispatch = False
+        return result
+
+    def recovery_state(self):
+        image = self.screenshot()
+        h, w = image.shape[:2]
+        labels = self.ocr(image[int(h * .25):int(h * .85)], ["弟子数量|藏宝灵[貅貔]"])
+        if any('弟子数量' in label.text for label in labels):
+            return '出征弹窗'
+        if self.templates(image[int(h * .65):], 'bubble', .65):
+            return '出征弹窗'
+        if any(re.search('藏宝灵[貅貔]', label.text) for label in labels):
+            return '目标弹窗'
+        if self.activity_visible():
+            return '活动界面'
+        world = self.recognize(image, JRecognitionType.And, JAnd(all_of=['通用行军确认大地图']))
+        return '大世界默认态' if world.hit else '其他界面'
+
+    def recover_world(self):
+        confirmations = 0
+        for attempt in range(6):
+            state = self.recovery_state()
+            self.engine.log(f"恢复界面 {attempt + 1}/6：{state}")
+            if state == '大世界默认态':
+                confirmations += 1
+                if confirmations == 2:
+                    return
+            else:
+                confirmations = 0
+                if state in ('出征弹窗', '目标弹窗'):
+                    image = self.screenshot()
+                    self.click(image.shape[1] * .12, image.shape[0] * .20)
+                else:
+                    self.pipeline('通用行军进入大地图')
+            self.pause(.5)
+        raise RuntimeError('恢复失败：未能连续确认无出征弹窗的大世界默认态')
+
+    def reconcile_pending_dispatch(self):
+        if getattr(self, 'pending_dispatch', False) is not True:
+            return False
+        self.engine.log('已尝试点击出征，先核实队伍，不重复派遣')
+        previous, confirmations = None, 0
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            valid, rows, count = self.snapshot()
+            candidate = None
+            if valid:
+                matches = [row for row in rows if similarity(row.avatar, self.pending_avatar) >= .65]
+                if len(matches) == 1 and matches[0].status in (MarchState.OUTBOUND, MarchState.FIGHTING):
+                    candidate = matches[0]
+                elif self.pending_baseline_reliable:
+                    candidate = new_dispatched_row(self.pending_rows, rows, count)
+            if candidate is None:
+                confirmations, previous = 0, None
+            else:
+                confirmations = confirmations + 1 if previous is not None and similarity(previous.avatar, candidate.avatar) >= .85 else 1
+                previous = candidate
+                if confirmations >= 3:
+                    self.pending_dispatch = False
+                    self.engine.log('恢复后连续三帧确认已出征，本次计数后继续')
+                    return True
+            self.pause(.5)
+        raise RuntimeError('已回到大世界，但之前出征结果仍不明确；停止以免重复派遣或错误计数')
+
+    def pixiu_attack_point(self, image):
+        h, w = image.shape[:2]
+        left, top = int(w * .1), int(h * .25)
+        titles = self.ocr(image[top:int(h * .65), left:int(w * .9)], ["藏宝灵[貅貔]"])
+        if len(titles) != 1:
+            return None
+        title = titles[0].box
+        # Search below the selected target tooltip, not other monsters' names.
+        # The radial attack icon is centered underneath the tooltip and can be
+        # recognized even when nearby labels merge with the caption "进攻".
+        x0 = max(0, int(left + title.x - 80 * w / 720))
+        x1 = min(w, int(left + title.x + title.w + 160 * w / 720))
+        y0 = top + title.y + title.h
+        y1 = min(int(h * .90), int(y0 + 620 * w / 720))
+        icons = self.templates(image[y0:y1, x0:x1], "attack", .7)
+        if len(icons) != 1:
+            return None
+        icon = icons[0].box
+        return x0 + icon.x + icon.w / 2, y0 + icon.y + icon.h / 2
+
+    def attack_pixiu(self, timeout):
+        deadline = time.monotonic() + timeout
+        previous = None
+        stable = 0
+        while time.monotonic() < deadline:
+            image = self.screenshot()
+            point = self.pixiu_attack_point(image)
+            if point is not None:
+                tolerance = 6 * image.shape[1] / 720
+                stable = (stable + 1 if previous is not None
+                          and max(abs(a - b) for a, b in zip(point, previous)) <= tolerance else 1)
+                previous = point
+                if stable >= 3:
+                    self.click(*point)
+                    self.pause(.4)
+                    return True
+            else:
+                previous = None
+                stable = 0
+            self.pause(.2)
+        return False
 
     def close_dispatch_panel(self):
         image = self.screenshot()
@@ -125,7 +241,10 @@ class Pixiu(March):
         h, w = image.shape[:2]
         left, top = int(w * .78), int(h * .1)
         roi = image[top:int(h * .4), left:]
-        labels = self.ocr(roi, ["^玩法活动$"])
+        # Floating map text can join the caption in a single OCR box (for
+        # example "[逍玩法活动]"). The actual click still requires the icon.
+        labels = [result for result in self.ocr(roi, ["玩法活动"])
+                  if "玩法活动" in result.text]
         if len(labels) != 1:
             raise RuntimeError("未找到右上角玩法活动入口")
         label = labels[0].box
@@ -247,10 +366,57 @@ class Pixiu(March):
             return None
         return used < capacity
 
+    def ready_dispatch_panel(self):
+        # This runs before selecting or dispatching a squad. Only recapture on
+        # transition failures: never re-click attack or dispatch speculatively.
+        def wait_panel():
+            for attempt in range(4):
+                try:
+                    return self.panel(self.screenshot())
+                except InterruptedError:
+                    raise
+                except RuntimeError:
+                    if attempt == 3:
+                        raise
+                    self.pause(.4)
+
+        try:
+            return wait_panel()
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            # Attack can miss while the map camera settles. Retry at most once,
+            # only when the same target tooltip and radial attack icon remain.
+            # This is before squad dispatch, never a retry of the dispatch click.
+            if self.pixiu_attack_point(self.screenshot()) is not None:
+                self.engine.log("尚停留在貔貅目标界面，等待图标稳定后补点一次进攻")
+                if self.attack_pixiu(3):
+                    try:
+                        return wait_panel()
+                    except InterruptedError:
+                        raise
+                    except RuntimeError as retry_error:
+                        exc = retry_error
+            self.engine.log(f"进攻后出征面板尚未确认：{exc}；检查体力不足提示")
+            if not self.pipeline("通用识别补充体力按钮"):
+                raise RuntimeError(f"进攻后连续四次未确认出征面板，且未发现体力不足提示：{exc}") from exc
+            if not self.engine.auto_stamina:
+                raise RuntimeError("体力不足，未勾选自动补体") from exc
+            if not self.engine._try_auto_stamina(self.tasker):
+                raise RuntimeError("自动补体未成功或没有可用体力来源") from exc
+        try:
+            return wait_panel()
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            if not self.pipeline("通用行军进入大地图"):
+                raise RuntimeError("补体后未确认出征面板，且无法返回大世界") from exc
+            raise RelocateAfterStamina("进攻阶段已补体，面板已关闭，重新定位目标") from exc
+
     def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
         existing = existing or []
         self.occupied_before_dispatch = len(existing)
-        selected, slots = self.panel(self.screenshot())
+        selected, slots = self.ready_dispatch_panel()
         # Allow a short settling period for weak early-slot recognition before
         # selecting a later squad. Always use the latest panel, not stale slots.
         for _ in range(2):
@@ -297,9 +463,17 @@ class Pixiu(March):
             raise NoFreeQueue("出征面板没有可确认的空闲队伍")
         queue = candidates[0]
         self.engine.log(f"出征面板：原选中第 {selected} 队，空闲候选 {candidates}，按队号优先选择第 {queue} 队")
+        self.pending_avatar = slots[queue - 1][2]
+        self.pending_rows = existing
+        self.pending_baseline_reliable = getattr(self, 'pre_snapshot_reliable', False)
+        self.pending_dispatch = False
         try:
-            return super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
+            handle = super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
+            self.pending_dispatch = False
+            return handle
         except ZeroDisciples:
+            raise
+        except InterruptedError:
             raise
         except (RuntimeError, TimeoutError):
             # Replay only when a positive stamina prompt proves dispatch was blocked.
@@ -309,7 +483,10 @@ class Pixiu(March):
                 raise RuntimeError("体力不足，未勾选自动补体")
             if not self.engine._try_auto_stamina(self.tasker):
                 raise RuntimeError("自动补体未成功或没有可用体力来源")
-            return super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
+            self.pending_dispatch = False  # Positive stamina prompt proves rejection.
+            handle = super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
+            self.pending_dispatch = False
+            return handle
 
 
 def run(engine, case):
@@ -317,9 +494,11 @@ def run(engine, case):
     flow = Pixiu(engine)
     for completed in range(count):
         if not flow.pipeline("通用行军进入大地图"):
-            raise RuntimeError("无法通过通用方法进入大地图")
+            flow.recover_world()
         deadline = time.monotonic() + 900
         waiting_logged = False
+        stamina_relocations = 0
+        recoveries = 0
         while True:
             # First run discovers actual capacity from the panel. Thereafter,
             # stay in the world until the HUD positively confirms a free slot;
@@ -331,8 +510,25 @@ def run(engine, case):
                 except ZeroDisciples:
                     flow.close_and_wait_for_return(flow.occupied_before_dispatch, deadline)
                     continue
+                except RelocateAfterStamina as exc:
+                    stamina_relocations += 1
+                    if stamina_relocations > 2 or time.monotonic() >= deadline:
+                        raise RuntimeError("补体后反复无法进入出征面板，已停止；本次未计数") from exc
+                    engine.log(str(exc))
+                    continue
                 except NoFreeQueue:
                     flow.close_dispatch_panel()
+                except InterruptedError:
+                    raise
+                except (RuntimeError, TimeoutError) as exc:
+                    recoveries += 1
+                    engine.log(f"检测失败，尝试恢复 {recoveries}/3：{exc}")
+                    if recoveries > 3 or time.monotonic() >= deadline:
+                        raise RuntimeError(f"连续恢复仍失败；已成功出征 {completed}/{count} 次：{exc}") from exc
+                    flow.recover_world()
+                    if flow.reconcile_pending_dispatch() is True:
+                        break
+                    continue
             if not waiting_logged:
                 engine.log("尚未确认空闲队列，留在大世界检测左上角小队状态……")
                 waiting_logged = True

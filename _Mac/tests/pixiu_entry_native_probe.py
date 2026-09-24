@@ -2,7 +2,6 @@ import sys
 import threading
 from pathlib import Path
 from types import SimpleNamespace
-from PIL import Image
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from maa.resource import Resource
@@ -40,3 +39,10 @@ with np.load(root/'tests/data/march_screens.npz') as march:
     f.screenshot = lambda: march['panel1']
     assert not f.zero_disciples(), 'Nonzero disciples must remain dispatchable'
 print('OFFLINE disciple count: PASS')
+
+with np.load(root/'tests/data/pixiu_attack.npz') as attack:
+    frame = attack['target']
+    point = f.pixiu_attack_point(frame)
+    assert point is not None, 'Pixiu tooltip and attack icon must be recognized'
+    assert 310 <= point[0] <= 410 and 900 <= point[1] <= 1000, point
+    print('OFFLINE selected pixiu attack icon: PASS', point)
