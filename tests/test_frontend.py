@@ -28,7 +28,7 @@ def load_pipeline_nodes() -> dict:
 class FrontendConfigurationTests(unittest.TestCase):
     def test_initial_cases_are_valid_and_sorted(self):
         cases = CaseLoader().load()
-        self.assertEqual(6, len(cases))
+        self.assertEqual(7, len(cases))
         self.assertEqual(len(cases), len({case.id for case in cases}))
         self.assertEqual(cases, sorted(cases, key=lambda case: (case.order, case.id)))
         self.assertTrue(all(case.enabled for case in cases))
@@ -74,7 +74,7 @@ class FrontendConfigurationTests(unittest.TestCase):
 
     def test_task_directory_contains_only_expected_active_json(self):
         active = sorted(TASKS_DIR.rglob("*.json"))
-        self.assertEqual(6, len(active))
+        self.assertEqual(7, len(active))
         for path in active:
             data = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(f"{data['id']}.json", path.name)
@@ -121,11 +121,11 @@ class FrontendConfigurationTests(unittest.TestCase):
         )
         self.assertEqual("Seize", wechat_mouse.name)
 
-    def test_auto_help_is_an_opt_in_background_case(self):
+    def test_auto_help_is_a_default_background_case(self):
         case = next(case for case in CaseLoader().load() if case.id == "auto_help")
         self.assertEqual("python", case.handler)
         self.assertEqual("agent.custom.action.auto_help.auto_help:run", case.extension)
-        self.assertFalse(case.default_checked)
+        self.assertTrue(case.default_checked)
         self.assertEqual("后台辅助", case.group)
         self.assertEqual(1.0, case.parameters["repeat_cooldown"])
         case_dir = CUSTOM_ACTION_DIR / "auto_help"
@@ -146,8 +146,8 @@ class FrontendConfigurationTests(unittest.TestCase):
         cases = {case.id: case for case in CaseLoader().load()}
         start_case = cases["auto_help"]
         stop_case = cases["stop_auto_help"]
-        self.assertEqual("▶ 开启自动帮助", start_case.name)
-        self.assertEqual("■ 停止自动帮助", stop_case.name)
+        self.assertEqual("开启自动帮助（需要单独执行）", start_case.name)
+        self.assertEqual("停止自动帮助（需要单独执行）", stop_case.name)
         self.assertEqual("后台辅助", stop_case.group)
         self.assertGreater(stop_case.order, start_case.order)
         self.assertEqual("python", stop_case.handler)
@@ -155,7 +155,7 @@ class FrontendConfigurationTests(unittest.TestCase):
             "agent.custom.action.stop_auto_help.stop_auto_help:run",
             stop_case.extension,
         )
-        self.assertFalse(stop_case.default_checked)
+        self.assertTrue(stop_case.default_checked)
         self.assertTrue(
             (CUSTOM_ACTION_DIR / "stop_auto_help" / "stop_auto_help.py").is_file()
         )

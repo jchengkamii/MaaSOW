@@ -1,0 +1,23 @@
+{
+  "内城主界面左下特征": {
+    "recognition": "TemplateMatch",
+    "template": [
+      "Common/Scene/inner_city_elder_label_reference.png",
+      "Common/Scene/inner_city_elder_label_runtime.png"
+    ],
+    "threshold": [0.62, 0.75],
+    "roi": [0, 1140, 180, 170],
+    "next": ["内城主界面右下特征"],
+    "timeout": 1000
+  },
+  "内城主界面右下特征": {
+    "recognition": "TemplateMatch",
+    "template": [
+      "Common/Scene/inner_city_world_label_reference.png",
+      "Common/Scene/inner_city_world_label_runtime.png"
+    ],
+    "threshold": [0.62, 0.75],
+    "roi": [540, 1140, 180, 170],
+    "timeout": 1000
+  }
+}

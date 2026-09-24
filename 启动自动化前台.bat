@@ -21,12 +21,12 @@ echo [MaaSOW] Updating MXU task cards...
 "%PROJECT_PYTHON%" "%~dp0generate_interface.py"
 if errorlevel 1 goto :error
 
-if not exist "%~dp0九霄仙府自动化测试.exe" (
-    echo [MaaSOW] Cannot find 九霄仙府自动化测试.exe
+if not exist "%~dp0九霄小助手.exe" (
+    echo [MaaSOW] Cannot find 九霄小助手.exe
     goto :error
 )
 
-start "" "%~dp0九霄仙府自动化测试.exe"
+start "" "%~dp0九霄小助手.exe"
 exit /b 0
 
 :error

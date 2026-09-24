@@ -1,0 +1,12 @@
+.venv/
+.test_deps/
+__pycache__/
+*.pyc
+cache/
+debug/
+dist/
+mxu
+maafw/
+.research/
+config/mxu-runtime.json
+config/mxu-*.json

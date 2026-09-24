@@ -18,7 +18,7 @@ def main() -> None:
     for folder in ("agent", "resource", "maafw", "licenses"):
         shutil.copytree(ROOT / folder, stage / folder, ignore=ignore)
     for name in ("interface.json", "generate_interface.py", "requirements.txt",
-                 "九霄仙府自动化测试.exe", "使用前环境准备.bat"):
+                 "九霄小助手.exe", "使用前环境准备.bat"):
         shutil.copy2(ROOT / name, stage / name)
     (stage / "tools").mkdir()
     for name in ("prepare_environment.ps1", "check_environment.py"):

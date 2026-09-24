@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "auto_ling_er",
+  "name": "自动玲儿降妖",
+  "group": "日常任务",
+  "description": "搜索指定等级妖兽洞穴，仅勾选队列参与集结循环；各队确认集结中、出征、返回并消失后计入总次数。",
+  "order": 76,
+  "default_checked": true,
+  "enabled": true,
+  "handler": "python",
+  "extension": "agent.custom.action.auto_ling_er:run",
+  "auto_stamina": true,
+  "parameters": {
+    "rally_level": 1,
+    "rally_count": 1,
+    "rally_queues": [
+      1
+    ]
+  }
+}

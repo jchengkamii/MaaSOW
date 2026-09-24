@@ -1,0 +1,53 @@
+{
+  "interface_version": 2,
+  "name": "MaaSOW",
+  "label": "九霄小助手",
+  "title": "九霄小助手 · MXU macOS",
+  "icon": "resource/app_icon.png",
+  "version": "1.0.1",
+  "description": "基于 MaaFramework 与 MXU 的微信小游戏黑盒自动化测试前台。\n\n使用中如有问题请飞书联系李嘉诚",
+  "welcome": "resource/locales/interface/WELCOME_zh_cn.md",
+  "license": "仅供本地学习与自动化测试使用。MXU 遵循 AGPL-3.0。",
+  "controller": [
+    {
+      "name": "WeChatOrGame",
+      "label": "九霄仙府游戏窗口",
+      "description": "后台截图与进程定向输入，不主动移动系统鼠标或激活游戏窗口；请保持游戏已打开且未最小化。",
+      "type": "MacOS",
+      "display_short_side": 720,
+      "macos": {
+        "title_regex": "^九霄仙府$",
+        "screencap": "ScreenCaptureKit",
+        "input": "PostToPid"
+      }
+    }
+  ],
+  "resource": [
+    {
+      "name": "Default",
+      "label": "九霄仙府测试资源",
+      "description": "当前微信界面与九霄仙府模板资源",
+      "path": [
+        "resource/base"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ]
+    }
+  ],
+  "agent": {
+    "child_exec": "./.venv/bin/python3",
+    "child_args": [
+      "-X",
+      "utf8",
+      "-u",
+      "./agent/main.py"
+    ]
+  },
+  "group": [],
+  "task": [],
+  "import": [
+    "resource/interface.tasks.json"
+  ],
+  "option": {}
+}

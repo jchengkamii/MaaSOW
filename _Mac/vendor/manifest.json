@@ -1,0 +1,30 @@
+{
+  "mxu_version": "2.6.1",
+  "maafw_version": "5.12.3",
+  "assets": [
+    {
+      "name": "MXU-macos-aarch64-v2.6.1.tar.gz",
+      "url": "https://github.com/MistEO/MXU/releases/download/v2.6.1/MXU-macos-aarch64-v2.6.1.tar.gz",
+      "sha256": "16eced2124e203dd16da1bbe95d8c388d7d8c273d936f8097b3916594c402b76",
+      "size": 11864652
+    },
+    {
+      "name": "MXU-macos-x86_64-v2.6.1.tar.gz",
+      "url": "https://github.com/MistEO/MXU/releases/download/v2.6.1/MXU-macos-x86_64-v2.6.1.tar.gz",
+      "sha256": "dbddff33e726e1392cfbec86d0614b20321f518cfe999b71c1e0b691034a902e",
+      "size": 12305125
+    },
+    {
+      "name": "MAA-macos-aarch64-v5.12.3.zip",
+      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.12.3/MAA-macos-aarch64-v5.12.3.zip",
+      "sha256": "5fe3881ecfaac4a5934fddccc82a71845c6dccc2a75bc1329e0df827ae5ba91c",
+      "size": 24889692
+    },
+    {
+      "name": "MAA-macos-x86_64-v5.12.3.zip",
+      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.12.3/MAA-macos-x86_64-v5.12.3.zip",
+      "sha256": "c8761efcd811d07e9ea979c22b6bc45dac7dd23e1beb760d79e14eacd333fd51",
+      "size": 27120430
+    }
+  ]
+}

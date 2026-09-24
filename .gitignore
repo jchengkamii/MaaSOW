@@ -32,7 +32,7 @@ reference_screenshots/
 # Track the frontend and bundled MaaFramework runtime used by the distribution.
 # Keep unrelated executables ignored.
 *.exe
-!/九霄仙府自动化测试.exe
+!/九霄小助手.exe
 !/maafw/**/*.exe
 
 # Obsolete extension directory; Python cases now live under cases/<case_id>/

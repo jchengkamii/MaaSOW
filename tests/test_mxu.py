@@ -55,11 +55,13 @@ class MxuIntegrationTests(unittest.TestCase):
             self.assertEqual("MXU执行外部用例", task["entry"])
             param = task["pipeline_override"]["MXU执行外部用例"]["custom_action_param"]
             self.assertEqual(case.id, param["case_id"])
-            self.assertEqual(case.id == "auto_pixiu", case.auto_stamina)
+            self.assertEqual(case.id in {"auto_pixiu", "auto_ling_er"}, case.auto_stamina)
             if case.id == "auto_treatment":
                 self.assertEqual(["自动治疗时长"], task["option"])
             elif case.id == "auto_pixiu":
                 self.assertEqual(["自动补体", "貔貅进攻次数"], task["option"])
+            elif case.id == "auto_ling_er":
+                self.assertEqual(["自动补体", "玲儿集结设置", "玲儿集结队列"], task["option"])
             else:
                 self.assertNotIn("option", task)
 
@@ -67,7 +69,7 @@ class MxuIntegrationTests(unittest.TestCase):
         self.assertEqual("input", treatment_option["type"])
         treatment_input = treatment_option["inputs"][0]
         self.assertEqual("目标分钟", treatment_input["name"])
-        self.assertEqual("30", treatment_input["default"])
+        self.assertEqual("40", treatment_input["default"])
         self.assertEqual("int", treatment_input["pipeline_type"])
         override = treatment_option["pipeline_override"]
         custom_param = override["MXU执行外部用例"]["custom_action_param"]
