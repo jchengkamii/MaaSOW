@@ -23,6 +23,10 @@ class ZeroDisciples(RuntimeError):
     """The selected squad has no disciples; no dispatch click was issued."""
 
 
+class RelocateAfterStamina(RuntimeError):
+    """Stamina was replenished before dispatch, but the panel is now closed."""
+
+
 class Pixiu(March):
     def pre_dispatch_rows(self):
         self.pre_snapshot_reliable = False
@@ -125,7 +129,10 @@ class Pixiu(March):
         h, w = image.shape[:2]
         left, top = int(w * .78), int(h * .1)
         roi = image[top:int(h * .4), left:]
-        labels = self.ocr(roi, ["^玩法活动$"])
+        # Floating map text can join the caption in a single OCR box (for
+        # example "[逍玩法活动]"). The actual click still requires the icon.
+        labels = [result for result in self.ocr(roi, ["玩法活动"])
+                  if "玩法活动" in result.text]
         if len(labels) != 1:
             raise RuntimeError("未找到右上角玩法活动入口")
         label = labels[0].box
@@ -247,10 +254,45 @@ class Pixiu(March):
             return None
         return used < capacity
 
+    def ready_dispatch_panel(self):
+        # This runs before selecting or dispatching a squad. Only recapture on
+        # transition failures: never re-click attack or dispatch speculatively.
+        def wait_panel():
+            for attempt in range(4):
+                try:
+                    return self.panel(self.screenshot())
+                except InterruptedError:
+                    raise
+                except RuntimeError:
+                    if attempt == 3:
+                        raise
+                    self.pause(.4)
+
+        try:
+            return wait_panel()
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            self.engine.log(f"进攻后出征面板尚未确认：{exc}；检查体力不足提示")
+            if not self.pipeline("通用识别补充体力按钮"):
+                raise RuntimeError(f"进攻后连续四次未确认出征面板，且未发现体力不足提示：{exc}") from exc
+            if not self.engine.auto_stamina:
+                raise RuntimeError("体力不足，未勾选自动补体") from exc
+            if not self.engine._try_auto_stamina(self.tasker):
+                raise RuntimeError("自动补体未成功或没有可用体力来源") from exc
+        try:
+            return wait_panel()
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            if not self.pipeline("通用行军进入大地图"):
+                raise RuntimeError("补体后未确认出征面板，且无法返回大世界") from exc
+            raise RelocateAfterStamina("进攻阶段已补体，面板已关闭，重新定位目标") from exc
+
     def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
         existing = existing or []
         self.occupied_before_dispatch = len(existing)
-        selected, slots = self.panel(self.screenshot())
+        selected, slots = self.ready_dispatch_panel()
         # Allow a short settling period for weak early-slot recognition before
         # selecting a later squad. Always use the latest panel, not stale slots.
         for _ in range(2):
@@ -320,6 +362,7 @@ def run(engine, case):
             raise RuntimeError("无法通过通用方法进入大地图")
         deadline = time.monotonic() + 900
         waiting_logged = False
+        stamina_relocations = 0
         while True:
             # First run discovers actual capacity from the panel. Thereafter,
             # stay in the world until the HUD positively confirms a free slot;
@@ -330,6 +373,12 @@ def run(engine, case):
                     break
                 except ZeroDisciples:
                     flow.close_and_wait_for_return(flow.occupied_before_dispatch, deadline)
+                    continue
+                except RelocateAfterStamina as exc:
+                    stamina_relocations += 1
+                    if stamina_relocations > 2 or time.monotonic() >= deadline:
+                        raise RuntimeError("补体后反复无法进入出征面板，已停止；本次未计数") from exc
+                    engine.log(str(exc))
                     continue
                 except NoFreeQueue:
                     flow.close_dispatch_panel()

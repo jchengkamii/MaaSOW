@@ -24,3 +24,10 @@ VC++ 安装可能出现 Windows 管理员授权提示；若要求重启，请重
 - MXU 2.4.5：https://github.com/MistEO/MXU/tree/v2.4.5 （AGPL-3.0）
 - MaaFramework 5.12.3：https://github.com/MaaXYZ/MaaFramework/tree/v5.12.3
 - 许可证见 licenses/ 与 maafw/MaaAgentBinary/LICENSE，转发时保留。
+
+自动更新：
+设置 → 脚本自动更新，可开关启动自动更新或立即检查。
+作者推送 main 并通过测试后生成更新包；下载后等待任务结束，安装并自动重启。
+更新保留本机配置、日志和 Python 环境，但会替换脚本与模板的手工修改。
+Python 依赖变更后重新运行“使用前环境准备.bat”；前台和框架升级需下载完整包。
+定制 MXU 源码与构建说明：https://github.com/jchengkamii/MaaSOW/blob/main/tools/AUTO_UPDATE.md

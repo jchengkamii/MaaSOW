@@ -1,0 +1,53 @@
+name: Publish main script update
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: maasow-main-update
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Generate unique version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "1.1.$env:GITHUB_RUN_NUMBER"
+          "value=$version" >> $env:GITHUB_OUTPUT
+      - name: Test and build script update
+        run: python tools/build_distribution.py --scripts-only --version '${{ steps.version.outputs.value }}'
+      - name: Publish complete package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATE_VERSION: ${{ steps.version.outputs.value }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:UPDATE_VERSION"
+          $asset = "dist/MaaSOW-scripts-win-x86_64-$tag.zip"
+          $notes = "main 自动构建。提交：$env:GITHUB_SHA。仅更新脚本与资源，保留本机配置与 Python 环境。"
+          # Upload while draft; clients only see the release after the package is complete.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists; use a new workflow run." }
+          gh release create $tag $asset --target $env:GITHUB_SHA --title "main $tag" --notes $notes --draft
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+          gh release edit $tag --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

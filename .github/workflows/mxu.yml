@@ -1,0 +1,38 @@
+name: Build customized MXU
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Get pinned MXU source
+        run: |
+          git clone --depth 1 --branch v2.4.5 https://github.com/MistEO/MXU.git build/mxu-reference
+          python tools/prepare_mxu.py build/mxu-reference
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: build/mxu-reference/src-tauri -> target
+      - name: Install frontend dependencies
+        run: |
+          npm install --global pnpm@10.28.0
+          pnpm --dir build/mxu-reference install --frozen-lockfile
+      - name: Test update version selection
+        run: node --experimental-strip-types --test build/mxu-reference/src/services/mainRelease.test.mjs
+      - name: Build MXU
+        working-directory: build/mxu-reference
+        run: pnpm tauri build --no-bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MaaSOW-MXU-win-x86_64
+          path: build/mxu-reference/src-tauri/target/release/mxu.exe

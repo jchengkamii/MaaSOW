@@ -25,3 +25,10 @@ py -3.12 -m venv .venv
 ```
 
 工程约定见 [AGENTS.md](AGENTS.md)，第三方许可证见 [licenses/](licenses/)。
+
+## 自动更新
+
+定制 MXU 的“设置 → 脚本自动更新”支持启动检查及手动更新。
+每次推送 main 并通过 GitHub Actions 测试后，自动发布脚本更新包；客户端在任务结束后安装并重启。
+本机配置与 Python 环境保留。开发 Git 目录禁止覆盖安装，请在独立发行目录使用。
+首次需要使用定制 EXE，构建和发布方法见 [自动更新说明](tools/AUTO_UPDATE.md)。

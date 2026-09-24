@@ -6,6 +6,34 @@ from agent.custom.action.march.state import MarchState as S, MarchTracker, parse
 from agent.custom.action.march.march import March, MarchHandle, SquadRow, new_dispatched_row
 
 class MarchTests(unittest.TestCase):
+    def test_outbound_ocr_coordinate_punctuation_and_suffix(self):
+        for text in ['去X：235Y.3481有', '去X:235Y:348', '去X：235Y，348']:
+            self.assertEqual(S.OUTBOUND, parse_status(text))
+        for text in ['去X：235', 'X：235Y.348', '去X:235Y:34800:12', '去X:Y:']:
+            self.assertIsNone(parse_status(text))
+
+    def test_added_row_survives_simultaneous_return(self):
+        a, b, c = np.random.default_rng(951).random((3, 24, 24, 3))
+        old = [SquadRow(a, S.RETURNING), SquadRow(b, S.RETURNING)]
+        added = SquadRow(c, S.OUTBOUND)
+        self.assertIs(added, new_dispatched_row(old, [old[0], added], 2))
+        self.assertIs(added, new_dispatched_row(old, [added], 1))
+        self.assertIsNone(new_dispatched_row(old, [old[0]], 1))
+        self.assertIsNone(new_dispatched_row(old, [SquadRow(c, S.RETURNING)], 1))
+        self.assertIsNone(new_dispatched_row(old, [added, added], 2))
+
+    def test_simultaneous_return_confirmation_requires_three_frames(self):
+        flow = self.make_dispatch()
+        a, b, c = np.random.default_rng(952).random((3, 24, 24, 3))
+        old = [SquadRow(a, S.RETURNING), SquadRow(b, S.RETURNING)]
+        added = SquadRow(c, parse_status('去X：235Y.3481有'))
+        flow.snapshot = Mock(side_effect=[(True, [old[0], added], 2),
+                                          (True, [added], 1), (True, [added], 1)])
+        handle = flow.dispatch_from_panel(queue=1, existing=old)
+        self.assertIs(c, handle.avatar)
+        self.assertEqual(3, flow.snapshot.call_count)
+        self.assertEqual(1, sum(call.args[0] == '出征' for call in flow.text_button.call_args_list))
+
     def test_added_row_handles_reorder_but_not_ambiguous_or_returned_rows(self):
         a, b, c = np.random.default_rng(91).random((3, 24, 24, 3))
         old = [SquadRow(a, S.OUTBOUND), SquadRow(b, S.RETURNING)]

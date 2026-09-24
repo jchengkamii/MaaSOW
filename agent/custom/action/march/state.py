@@ -20,7 +20,9 @@ def parse_status(text: str) -> MarchState | None:
     if label:
         return {"集结中": MarchState.ASSEMBLING, "战斗中": MarchState.FIGHTING,
                 "返回": MarchState.RETURNING, "出征": MarchState.OUTBOUND}[label[1]]
-    if re.fullmatch(r"去[Xx][：:]?-?\d+[Yy][：:]?-?\d+", text):
+    # Coordinates remain a strong outbound marker even when OCR merges a short
+    # map label at the end or reads the colon as a dot/comma.
+    if re.fullmatch(r"去[Xx][：:.,，。·]?-?\d+[Yy][：:.,，。·]?-?\d+[^\d\s:：]{0,3}", text):
         return MarchState.OUTBOUND
     return None
 

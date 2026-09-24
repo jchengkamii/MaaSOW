@@ -4,13 +4,107 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from agent.custom.action.auto_pixiu import NoFreeQueue, ZeroDisciples, Pixiu, attack_count, run
+from agent.custom.action.auto_pixiu import NoFreeQueue, ZeroDisciples, RelocateAfterStamina, Pixiu, attack_count, run
 from agent.custom.action.march.march import March, SquadRow
 from agent.custom.action.run_configured_case import parse_attack_count, worker_command_with_options
 from generate_interface import generate
 
 
 class PixiuTests(unittest.TestCase):
+    def panel_recovery_flow(self):
+        flow = Pixiu.__new__(Pixiu)
+        flow.engine = Mock(auto_stamina=True)
+        flow.tasker = Mock()
+        flow.screenshot = Mock()
+        flow.pause = Mock()
+        flow.pipeline = Mock(return_value=True)
+        flow.click = Mock()
+        return flow
+
+    def test_panel_transition_waits_without_clicking_again(self):
+        flow = self.panel_recovery_flow()
+        flow.panel = Mock(side_effect=[RuntimeError('气泡'), RuntimeError('气泡'), (2, [])])
+        self.assertEqual((2, []), flow.ready_dispatch_panel())
+        self.assertEqual(2, flow.pause.call_count)
+        flow.pipeline.assert_not_called()
+        flow.click.assert_not_called()
+
+    def test_missing_initial_panel_checks_stamina_before_selecting(self):
+        flow = self.panel_recovery_flow()
+        flow.panel = Mock(side_effect=[RuntimeError('气泡')] * 4 + [(2, [])])
+        self.assertEqual((2, []), flow.ready_dispatch_panel())
+        flow.engine._try_auto_stamina.assert_called_once_with(flow.tasker)
+        flow.click.assert_not_called()
+
+    def test_missing_panel_without_stamina_prompt_stops(self):
+        flow = self.panel_recovery_flow()
+        flow.panel = Mock(side_effect=RuntimeError('气泡'))
+        flow.pipeline.return_value = False
+        with self.assertRaisesRegex(RuntimeError, '未发现体力不足提示'):
+            flow.ready_dispatch_panel()
+        flow.engine._try_auto_stamina.assert_not_called()
+
+    def test_stamina_closed_panel_relocates_before_any_dispatch(self):
+        flow = self.panel_recovery_flow()
+        flow.panel = Mock(side_effect=RuntimeError('气泡'))
+        with self.assertRaises(RelocateAfterStamina):
+            flow.ready_dispatch_panel()
+        flow.pipeline.assert_any_call('通用行军进入大地图')
+        flow.click.assert_not_called()
+
+    def test_stamina_relocation_does_not_count_attack_and_is_bounded(self):
+        for failures in [1, 3]:
+            with self.subTest(failures=failures):
+                flow = Mock()
+                flow.dispatch.side_effect = [RelocateAfterStamina()] * failures + ['handle']
+                with patch('agent.custom.action.auto_pixiu.Pixiu', return_value=flow):
+                    if failures == 3:
+                        with self.assertRaisesRegex(RuntimeError, '反复无法'):
+                            run(Mock(), SimpleNamespace(parameters={'attack_count': 1}))
+                    else:
+                        run(Mock(), SimpleNamespace(parameters={'attack_count': 1}))
+                self.assertEqual(min(failures + 1, 3), flow.dispatch.call_count)
+
+    def make_activity_entry(self, texts):
+        flow = Pixiu.__new__(Pixiu)
+        flow.engine = Mock()
+        flow.screenshot = Mock(return_value=np.zeros((1298, 720, 3), dtype=np.uint8))
+        labels = [SimpleNamespace(text=text, box=SimpleNamespace(x=43, y=178, w=106, h=25))
+                  for text in texts]
+        def ocr(_image, patterns):
+            import re
+            return [label for label in labels if any(re.search(p, label.text) for p in patterns)]
+        flow.ocr = Mock(side_effect=ocr)
+        flow.recognize = Mock(return_value=SimpleNamespace(hit=True, filtered_results=[
+            SimpleNamespace(box=SimpleNamespace(x=30, y=25, w=50, h=50))]))
+        flow.click = Mock()
+        flow.pause = Mock()
+        flow.activity_visible = Mock(return_value=True)
+        return flow
+
+    def test_activity_entry_accepts_ocr_caption_with_extra_characters(self):
+        for text in ['玩法活动', '[逍玩法活动]']:
+            with self.subTest(text=text):
+                flow = self.make_activity_entry([text])
+                flow.open_activity()
+                flow.click.assert_called_once_with(647.0, 267.0)
+                flow.recognize.assert_called_once()
+
+    def test_activity_entry_rejects_missing_or_ambiguous_caption(self):
+        for texts in [['超值活动'], ['玩法活动', '[逍玩法活动]']]:
+            with self.subTest(texts=texts):
+                flow = self.make_activity_entry(texts)
+                with self.assertRaisesRegex(RuntimeError, '未找到'):
+                    flow.open_activity()
+                flow.click.assert_not_called()
+
+    def test_noisy_activity_caption_still_requires_matching_icon(self):
+        flow = self.make_activity_entry(['[逍玩法活动]'])
+        flow.recognize.return_value = SimpleNamespace(hit=False, filtered_results=[])
+        with self.assertRaisesRegex(RuntimeError, '未唯一识别'):
+            flow.open_activity()
+        flow.click.assert_not_called()
+
     def test_quantity_ocr_fragments(self):
         def result(text, x, y, w, h):
             return SimpleNamespace(text=text, box=SimpleNamespace(x=x, y=y, w=w, h=h))
