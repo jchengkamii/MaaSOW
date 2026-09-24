@@ -29,6 +29,19 @@ class _Tasker:
 
 
 class AutoStaminaTests(unittest.TestCase):
+    def test_close_uses_button_center_and_verifies_disappearance(self):
+        for close in ('通用自动补体关闭恢复体力界面', '通用自动补体无可用来源关闭'):
+            node = self.pipeline[close]
+            dx, dy, dw, dh = node['target_offset']
+            # Logged match 60x58: all possible random clicks stay in its center.
+            self.assertEqual((24, 23, 12, 12), (dx, dy, 60+dw, 58+dh))
+            self.assertEqual(3, node['max_hit'])
+            wait = self.pipeline[node['next'][0]]
+            self.assertEqual(close, wait['next'][0])
+            absent = self.pipeline[wait['next'][1]]
+            self.assertTrue(absent['inverse'])
+            self.assertEqual('Common/AutoStamina/recover_stamina_title.png', absent['template'])
+
     def test_use_region_fits_template_and_logged_batch_is_accepted(self):
         for amount in (10, 50, 100):
             for prefix in ('通用自动补体', '通用自动补体向下后'):
@@ -148,7 +161,8 @@ class AutoStaminaTests(unittest.TestCase):
         node = self.pipeline["通用自动补体无可用来源关闭"]
         self.assertEqual("Common/AutoStamina/recover_stamina_close.png", node["template"])
         self.assertEqual("Click", node["action"])
-        self.assertNotIn("next", node)
+        self.assertEqual(['通用自动补体等待无来源关闭'], node['next'])
+        self.assertEqual([], self.pipeline['通用自动补体确认无来源已关闭']['next'])
 
     def test_engine_only_retries_when_stamina_button_changed(self):
         messages: list[str] = []
