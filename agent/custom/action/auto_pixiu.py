@@ -81,10 +81,43 @@ class Pixiu(March):
         return int(match[1]) == 0
 
     def text_button(self, text, timeout=8):
+        if text == "进攻":
+            return self.attack_pixiu(timeout)
         # Common march calls this after selecting the squad and auto-deploying.
         if text == "出征" and self.zero_disciples():
             raise ZeroDisciples("弟子数量为 0，等待队伍返回")
         return super().text_button(text, timeout=timeout)
+
+    def pixiu_attack_point(self, image):
+        h, w = image.shape[:2]
+        left, top = int(w * .1), int(h * .25)
+        titles = self.ocr(image[top:int(h * .65), left:int(w * .9)], ["藏宝灵[貅貔]"])
+        if len(titles) != 1:
+            return None
+        title = titles[0].box
+        # Search below the selected target tooltip, not other monsters' names.
+        # The radial attack icon is centered underneath the tooltip and can be
+        # recognized even when nearby labels merge with the caption "进攻".
+        x0 = max(0, int(left + title.x - 80 * w / 720))
+        x1 = min(w, int(left + title.x + title.w + 160 * w / 720))
+        y0 = top + title.y + title.h
+        y1 = min(int(h * .90), int(y0 + 620 * w / 720))
+        icons = self.templates(image[y0:y1, x0:x1], "attack", .7)
+        if len(icons) != 1:
+            return None
+        icon = icons[0].box
+        return x0 + icon.x + icon.w / 2, y0 + icon.y + icon.h / 2
+
+    def attack_pixiu(self, timeout):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            point = self.pixiu_attack_point(self.screenshot())
+            if point is not None:
+                self.click(*point)
+                self.pause(.4)
+                return True
+            self.pause(.2)
+        return False
 
     def close_dispatch_panel(self):
         image = self.screenshot()

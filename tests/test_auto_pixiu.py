@@ -11,6 +11,31 @@ from generate_interface import generate
 
 
 class PixiuTests(unittest.TestCase):
+    def test_pixiu_attack_uses_icon_without_caption_ocr(self):
+        flow = Pixiu.__new__(Pixiu)
+        flow.screenshot = Mock(return_value=np.zeros((1300, 720, 3), dtype=np.uint8))
+        flow.ocr = Mock(return_value=[SimpleNamespace(text='等级10藏宝灵貅',
+            box=SimpleNamespace(x=100, y=130, w=250, h=30))])
+        flow.templates = Mock(return_value=[SimpleNamespace(box=SimpleNamespace(x=210, y=460, w=80, h=80))])
+        flow.click = Mock()
+        flow.pause = Mock()
+        self.assertTrue(flow.text_button('进攻', timeout=1))
+        flow.click.assert_called_once_with(342.0, 985.0)
+        self.assertEqual(['藏宝灵[貅貔]'], flow.ocr.call_args.args[1])
+
+    def test_pixiu_attack_rejects_missing_target_and_ambiguous_icons(self):
+        flow = Pixiu.__new__(Pixiu)
+        image = np.zeros((1300, 720, 3), dtype=np.uint8)
+        title = SimpleNamespace(box=SimpleNamespace(x=100, y=130, w=250, h=30))
+        flow.templates = Mock()
+        for titles in [[], [title, title]]:
+            flow.ocr = Mock(return_value=titles)
+            self.assertIsNone(flow.pixiu_attack_point(image))
+        flow.templates.assert_not_called()
+        flow.ocr.return_value = [title]
+        for icons in [[], [Mock(), Mock()]]:
+            flow.templates.return_value = icons
+            self.assertIsNone(flow.pixiu_attack_point(image))
     def panel_recovery_flow(self):
         flow = Pixiu.__new__(Pixiu)
         flow.engine = Mock(auto_stamina=True)
