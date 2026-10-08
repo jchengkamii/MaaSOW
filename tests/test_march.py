@@ -6,6 +6,38 @@ from agent.custom.action.march.state import MarchState as S, MarchTracker, parse
 from agent.custom.action.march.march import March, MarchHandle, SquadRow, new_dispatched_row
 
 class MarchTests(unittest.TestCase):
+    def test_switch_waits_through_missing_bubble_and_old_selection(self):
+        flow = self.make_dispatch()
+        slots = flow.panel.return_value[1]
+        flow.panel = Mock(side_effect=[RuntimeError('气泡未出现'), (4, slots),
+                                       (3, slots), RuntimeError('动画'), (3, slots), (3, slots)])
+        selected, _ = flow.wait_selected_panel(3)
+        self.assertEqual(3, selected)
+        self.assertEqual(6, flow.panel.call_count)
+        flow.click.assert_not_called()
+
+    def test_switch_failure_saves_frame_without_dispatch(self):
+        flow = self.make_dispatch()
+        flow.panel = Mock(side_effect=RuntimeError('气泡不唯一'))
+        flow.record_panel_failure = Mock()
+        with self.assertRaisesRegex(RuntimeError, '未稳定确认第 3 队'):
+            flow.wait_selected_panel(3)
+        self.assertEqual(8, flow.panel.call_count)
+        flow.record_panel_failure.assert_called_once()
+        flow.text_button.assert_not_called()
+
+    def test_bubble_candidates_need_selected_slot_number(self):
+        from types import SimpleNamespace
+        flow = self.make_dispatch()
+        # Exercise the real candidate chooser with one unrelated map bubble.
+        del flow.panel
+        image = np.zeros((1300,720,3), dtype=np.uint8)
+        flow.templates = Mock(return_value=[SimpleNamespace(box='noise'), SimpleNamespace(box='real')])
+        slots = [(True, (0,0), np.zeros((24,24,3)))] * 4
+        empty = [(False, (0,0), np.zeros((24,24,3)))] * 4
+        flow.panel_at_bubble = Mock(side_effect=[(1,empty,[False]*4), (3,slots,[True,True,False,True])])
+        self.assertEqual(3, flow.panel(image)[0])
+        self.assertEqual([True,True,False,True], flow.panel_busy)
     def test_outbound_ocr_coordinate_punctuation_and_suffix(self):
         for text in ['去X：235Y.3481有', '去X:235Y:348', '去X：235Y，348']:
             self.assertEqual(S.OUTBOUND, parse_status(text))

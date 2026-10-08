@@ -21,6 +21,11 @@ def main():
     assert Library.framework().MaaTaskerBindResource(tasker._handle,resource._handle)
     flow=March.__new__(March);flow.tasker=tasker
     flow.engine=SimpleNamespace(stop_event=threading.Event(),_state_lock=threading.RLock(),_current_tasker=None)
+    with np.load(root/'tests/data/march_third_selected.npz') as images:
+        actual, slots = flow.panel(images['panel'])
+        assert actual == 3, actual
+        assert [s[0] for s in slots] == [True] * 4
+        assert flow.panel_busy == [True, True, False, True]
     with np.load(root/'tests/data/march_other_user.npz') as images:
         actual, slots = flow.panel(images['panel'])
         assert actual == 1, actual

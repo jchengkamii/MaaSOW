@@ -218,9 +218,22 @@ class March:
         h, w = image.shape[:2]
         origin = int(h * .65)
         hits = self.templates(image[origin:], "bubble", .65)
-        if len(hits) != 1:
-            raise RuntimeError("无法唯一识别出征面板气泡指向")
-        box = hits[0].box
+        candidates = []
+        for hit in hits:
+            try:
+                candidate = self.panel_at_bubble(image, origin, hit.box)
+            except RuntimeError:
+                continue
+            selected, slots, busy = candidate
+            if slots[selected - 1][0]:
+                candidates.append(candidate)
+        if len(candidates) != 1:
+            raise RuntimeError(f"无法唯一识别出征面板气泡指向（原始候选 {len(hits)}，队号校验通过 {len(candidates)}）")
+        selected, slots, self.panel_busy = candidates[0]
+        return selected, slots
+
+    def panel_at_bubble(self, image, origin, box):
+        h, w = image.shape[:2]
         center = box.x + box.w / 2
         centers = [w * value for value in (.19, .396, .605, .816)]
         selected = min(range(4), key=lambda i: abs(centers[i] - center))
@@ -229,6 +242,8 @@ class March:
         scale = w / 690
         top = round(origin + box.y + box.h + 21 * scale)
         size = round(110 * scale)
+        if top < h * .75 or top + size > h * .98:
+            raise RuntimeError("气泡不在底部队列上方")
         slots = []
         busy = []
         for i, x in enumerate(centers):
@@ -241,8 +256,33 @@ class March:
             numbered = False if blocked else self.slot_number(crop[int(size * .72):, :int(size * .25)], i + 1)
             slots.append((numbered, (x, top + size / 2), portrait(crop)))
             busy.append(self.slot_busy(image, left, top, size))
-        self.panel_busy = busy
-        return selected + 1, slots
+        return selected + 1, slots, busy
+
+    def wait_selected_panel(self, desired):
+        confirmations = 0
+        last_error = '队列切换未生效'
+        for attempt in range(8):
+            image = self.screenshot()
+            try:
+                selected, slots = self.panel(image)
+                if selected == desired and slots[desired - 1][0]:
+                    confirmations += 1
+                    if confirmations >= 2:
+                        return selected, slots
+                else:
+                    confirmations = 0
+                    last_error = f'目标第 {desired} 队，当前第 {selected} 队'
+            except InterruptedError:
+                raise
+            except RuntimeError as exc:
+                confirmations = 0
+                last_error = str(exc)
+            if attempt < 7:
+                self.pause(.3)
+        recorder = getattr(self, 'record_panel_failure', None)
+        if callable(recorder):
+            recorder(image)
+        raise RuntimeError(f'切队后未稳定确认第 {desired} 队：{last_error}')
 
     def row_anchors(self, image):
         # Gathering squads show recall, while marching squads show speed-up.
@@ -403,10 +443,8 @@ class March:
             raise RuntimeError(f"第 {desired} 队未解锁或无法确认，未出征")
         if selected != desired:
             self.click(*slots[desired - 1][1])
-            self.pause(.6)
-            selected, slots = self.panel(self.screenshot())
-            if selected != desired or not slots[desired - 1][0]:
-                raise RuntimeError("队列切换未生效")
+            self.pause(.3)
+            selected, slots = self.wait_selected_panel(desired)
         # At most one auto-deploy click, followed by a fresh button recognition.
         if self.text_button("一键上阵", timeout=.6):
             self.pause(.6)
