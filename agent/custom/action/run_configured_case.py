@@ -84,7 +84,8 @@ def worker_command_with_options(
     case_id: str, auto_stamina: bool, target_minutes: int | None = None,
     attack_count: int | None = None,
     rally_level: int | None = None, rally_count: int | None = None,
-    rally_queues: list[int] | None = None
+    rally_queues: list[int] | None = None,
+    attack_queues: list[int] | None = None
 ) -> list[str]:
     command = [sys.executable, "-u", "-m", "agent.worker", "--case-id", case_id]
     if auto_stamina:
@@ -98,7 +99,15 @@ def worker_command_with_options(
             command.extend([f"--{key}", str(value)])
     if rally_queues is not None:
         command.extend(["--rally-queues", ",".join(map(str, rally_queues))])
+    if attack_queues is not None:
+        command.extend(["--attack-queues", ",".join(map(str, attack_queues))])
     return command
+
+
+def selected_attack_queues(context: Context) -> list[int]:
+    from agent.custom.action.auto_pixiu import attack_queues
+    return attack_queues([q for q in range(1, 5)
+                          if (context.get_node_data(f"貔貅出征队列{q}") or {}).get("enabled") is True])
 
 
 def selected_rally_queues(context: Context) -> list[int]:
@@ -130,6 +139,8 @@ class RunConfiguredCase(CustomAction):
             case_id, target_minutes = parse_case_request(argv.custom_action_param)
             attack_count = parse_attack_count(argv.custom_action_param)
             rally_options = parse_rally_options(argv.custom_action_param)
+            if case_id == "auto_pixiu":
+                rally_options["attack_queues"] = selected_attack_queues(context)
             if case_id == "auto_ling_er":
                 rally_options["rally_queues"] = selected_rally_queues(context)
         except Exception as exc:

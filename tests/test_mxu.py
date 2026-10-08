@@ -59,7 +59,7 @@ class MxuIntegrationTests(unittest.TestCase):
             if case.id == "auto_treatment":
                 self.assertEqual(["自动治疗时长"], task["option"])
             elif case.id == "auto_pixiu":
-                self.assertEqual(["自动补体", "貔貅进攻次数"], task["option"])
+                self.assertEqual(["自动补体", "貔貅进攻次数", "貔貅出征队列"], task["option"])
             elif case.id == "auto_ling_er":
                 self.assertEqual(["自动补体", "玲儿集结设置", "玲儿集结队列"], task["option"])
             else:

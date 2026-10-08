@@ -27,6 +27,7 @@ def execute(
     rally_level: int | None = None,
     rally_count: int | None = None,
     rally_queues: list[int] | str | None = None,
+    attack_queues: list[int] | str | None = None,
 ) -> int:
     started = time.monotonic()
     try:
@@ -49,6 +50,14 @@ def execute(
                 raise RuntimeError("进攻次数参数只能用于自动打貔貅")
             parameters = dict(case.parameters or {})
             parameters["attack_count"] = validate_count(attack_count)
+            case = replace(case, parameters=parameters)
+
+        if attack_queues is not None:
+            from agent.custom.action.auto_pixiu import attack_queues as validate_queues
+            if case.id != "auto_pixiu":
+                raise RuntimeError("出征队列参数只能用于自动打貔貅")
+            parameters = dict(case.parameters or {})
+            parameters["attack_queues"] = validate_queues(attack_queues)
             case = replace(case, parameters=parameters)
 
         if rally_level is not None or rally_count is not None or rally_queues is not None:
@@ -112,6 +121,7 @@ def main() -> int:
         help="自动治疗的单批目标分钟数",
     )
     parser.add_argument("--attack-count", type=int, help="自动打貔貅的进攻次数")
+    parser.add_argument("--attack-queues", help="貔貅出征队列，例如 1,3；默认 1,2,3,4")
     parser.add_argument("--rally-level", type=int, help="玲儿降妖集结等级")
     parser.add_argument("--rally-count", type=int, help="玲儿降妖集结次数")
     parser.add_argument("--rally-queues", help="玲儿降妖参与队列，例如 1,2,3；默认 1")
@@ -121,6 +131,7 @@ def main() -> int:
         auto_stamina=args.auto_stamina,
         target_minutes=args.target_minutes,
         attack_count=args.attack_count,
+        attack_queues=args.attack_queues,
         rally_level=args.rally_level,
         rally_count=args.rally_count,
         rally_queues=args.rally_queues,

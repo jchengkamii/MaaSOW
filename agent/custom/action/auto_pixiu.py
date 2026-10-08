@@ -16,6 +16,18 @@ def attack_count(value):
     return int(value)
 
 
+def attack_queues(value):
+    if isinstance(value, str):
+        if not re.fullmatch(r"[1-4](?:,[1-4])*", value):
+            raise ValueError("请至少勾选一个出征队列（1、2、3、4）")
+        value = [int(item) for item in value.split(',')]
+    if (not isinstance(value, (list, tuple)) or not value
+            or any(type(item) is not int or item not in range(1, 5) for item in value)
+            or len(set(value)) != len(value)):
+        raise ValueError("出征队列必须为 1、2、3、4 中至少一个不重复的队号")
+    return sorted(value)
+
+
 class NoFreeQueue(RuntimeError):
     """Panel was inspected but no safe dispatch candidate was found."""
 
@@ -341,6 +353,19 @@ class Pixiu(March):
         raise RuntimeError("搜索后未确认藏宝灵貅目标，可能本波已被打完")
 
     def free_queue(self):
+        allowed = getattr(self, 'allowed_queues', [1, 2, 3, 4])
+        if allowed != [1, 2, 3, 4]:
+            # HUD count alone cannot tell whether a selected squad is free.
+            valid, rows, occupied = self.snapshot()
+            avatars = getattr(self, 'allowed_avatars', {})
+            if not valid or occupied != len(rows) or not avatars:
+                self.selected_free_candidates = set()
+                return None
+            free = {q for q, avatar in avatars.items() if q in allowed
+                    and not any(similarity(row.avatar, avatar) >= .65 for row in rows)}
+            previous = getattr(self, 'selected_free_candidates', set())
+            self.selected_free_candidates = free
+            return bool(free & previous)
         # Queue capacity comes from the dispatch panel, not from row recognition.
         image = self.screenshot()
         h, w = image.shape[:2]
@@ -429,6 +454,9 @@ class Pixiu(March):
             self.engine.log(f"保存面板诊断截图失败：{exc}")
 
     def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
+        allowed = getattr(self, 'allowed_queues', [1, 2, 3, 4])
+        if queue is not None and queue not in allowed:
+            raise ValueError(f"第 {queue} 队未勾选，不参与出征")
         existing = existing or []
         self.occupied_before_dispatch = len(existing)
         selected, slots = self.ready_dispatch_panel()
@@ -466,16 +494,21 @@ class Pixiu(March):
         # Also retain a baseline when pre-dispatch HUD recognition was missing,
         # so the zero-disciples path can still wait for a real return.
         self.occupied_before_dispatch = max(len(existing), sum(busy))
+        self.allowed_avatars = {i + 1: avatar for i, (unlocked, _, avatar) in enumerate(slots)
+                                if unlocked and i + 1 in allowed}
+        self.selected_free_candidates = set()
         candidates = [i + 1 for i, (unlocked, _, avatar) in enumerate(slots)
-                      if unlocked and not busy[i]
+                      if i + 1 in allowed and (queue is None or i + 1 == queue)
+                      and unlocked and not busy[i]
                       and not any(similarity(row.avatar, avatar) >= .65 for row in existing)]
         for i, (unlocked, _, avatar) in enumerate(slots):
-            reason = ('行军/返回图标或状态竖条显示占用' if busy[i] else
+            reason = ('未勾选，不参与出征' if i + 1 not in allowed else
+                      '行军/返回图标或状态竖条显示占用' if busy[i] else
                       '锁定或队号识别未通过' if not unlocked else
                       '与外出队伍头像匹配' if i + 1 not in candidates else '空闲候选')
             self.engine.log(f"第 {i + 1} 队：{reason}")
         if not candidates:
-            raise NoFreeQueue("出征面板没有可确认的空闲队伍")
+            raise NoFreeQueue("所选出征队列中没有可确认的空闲队伍")
         queue = candidates[0]
         self.engine.log(f"出征面板：原选中第 {selected} 队，空闲候选 {candidates}，按队号优先选择第 {queue} 队")
         self.pending_avatar = slots[queue - 1][2]
@@ -506,7 +539,10 @@ class Pixiu(March):
 
 def run(engine, case):
     count = attack_count((case.parameters or {}).get("attack_count", 1))
+    queues = attack_queues((case.parameters or {}).get("attack_queues", [1, 2, 3, 4]))
     flow = Pixiu(engine)
+    flow.allowed_queues = queues
+    engine.log(f"貔貅参与出征队列：{','.join(map(str, queues))}")
     for completed in range(count):
         if not flow.pipeline("通用行军进入大地图"):
             flow.recover_world()

@@ -11,6 +11,12 @@
   "extension": "agent.custom.action.auto_pixiu:run",
   "auto_stamina": true,
   "parameters": {
-    "attack_count": 1
+    "attack_count": 1,
+    "attack_queues": [
+      1,
+      2,
+      3,
+      4
+    ]
   }
 }

@@ -155,11 +155,24 @@
           "custom_action_param": {
             "case_id": "auto_pixiu"
           }
+        },
+        "貔貅出征队列1": {
+          "enabled": false
+        },
+        "貔貅出征队列2": {
+          "enabled": false
+        },
+        "貔貅出征队列3": {
+          "enabled": false
+        },
+        "貔貅出征队列4": {
+          "enabled": false
         }
       },
       "option": [
         "自动补体",
-        "貔貅进攻次数"
+        "貔貅进攻次数",
+        "貔貅出征队列"
       ]
     },
     {
@@ -245,6 +258,55 @@
           }
         }
       }
+    },
+    "貔貅出征队列": {
+      "type": "checkbox",
+      "label": "出征队列",
+      "description": "仅勾选队列参与出征；至少选择一队，默认全选，按队号优先派遣",
+      "default_case": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "cases": [
+        {
+          "name": "1",
+          "label": "1",
+          "pipeline_override": {
+            "貔貅出征队列1": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "2",
+          "label": "2",
+          "pipeline_override": {
+            "貔貅出征队列2": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "3",
+          "label": "3",
+          "pipeline_override": {
+            "貔貅出征队列3": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "4",
+          "label": "4",
+          "pipeline_override": {
+            "貔貅出征队列4": {
+              "enabled": true
+            }
+          }
+        }
+      ]
     },
     "貔貅进攻次数": {
       "type": "input",

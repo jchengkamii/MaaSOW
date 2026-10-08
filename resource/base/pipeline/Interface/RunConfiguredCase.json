@@ -26,5 +26,21 @@
   "玲儿集结队列4": {
     "recognition": "DirectHit",
     "enabled": false
+  },
+  "貔貅出征队列1": {
+    "recognition": "DirectHit",
+    "enabled": false
+  },
+  "貔貅出征队列2": {
+    "recognition": "DirectHit",
+    "enabled": false
+  },
+  "貔貅出征队列3": {
+    "recognition": "DirectHit",
+    "enabled": false
+  },
+  "貔貅出征队列4": {
+    "recognition": "DirectHit",
+    "enabled": false
   }
 }
