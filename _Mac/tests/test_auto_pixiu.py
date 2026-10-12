@@ -120,6 +120,7 @@ class PixiuTests(unittest.TestCase):
         flow.engine = Mock(auto_stamina=True)
         flow.tasker = Mock()
         flow.screenshot = Mock()
+        flow.record_panel_failure = Mock()
         flow.pause = Mock()
         flow.pipeline = Mock(return_value=True)
         flow.click = Mock()
@@ -265,7 +266,7 @@ class PixiuTests(unittest.TestCase):
         slots = [(True, (0, 0), a) for a in np.random.default_rng(82).random((4,24,24,3))]
         flow.panel = Mock(return_value=(1, slots))
         flow.panel_busy = [True, False, False, False]
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             flow.dispatch_from_panel(existing=[])
         self.assertEqual(2, dispatch.call_args.args[0])
         self.assertEqual(4, flow.queue_capacity)
@@ -278,7 +279,7 @@ class PixiuTests(unittest.TestCase):
         flow.screenshot = Mock()
         slots = [(True, (0, 0), a) for a in np.random.default_rng(71).random((4,24,24,3))]
         flow.panel = Mock(return_value=(2, slots))
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             flow.dispatch_from_panel()
         self.assertEqual(1, dispatch.call_args.args[0])
 
@@ -290,7 +291,7 @@ class PixiuTests(unittest.TestCase):
         slots = [(True, (0, 0), a) for a in np.random.default_rng(72).random((4,24,24,3))]
         uncertain = [(False, slots[0][1], slots[0][2])] + slots[1:]
         flow.panel = Mock(side_effect=[(2, uncertain), (2, slots)])
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             flow.dispatch_from_panel()
         self.assertEqual(1, dispatch.call_args.args[0])
         flow.pause.assert_called_once_with(.35)
@@ -298,10 +299,12 @@ class PixiuTests(unittest.TestCase):
     def test_zero_disciples_never_clicks_dispatch(self):
         flow = Pixiu.__new__(Pixiu)
         flow.zero_disciples = Mock(return_value=True)
-        with patch.object(March, 'text_button') as button:
-            with self.assertRaises(ZeroDisciples):
-                flow.text_button('出征')
-            button.assert_not_called()
+        flow.click = Mock()
+        flow.ocr = Mock()
+        with self.assertRaises(ZeroDisciples):
+            flow.text_button('出征')
+        flow.click.assert_not_called()
+        flow.ocr.assert_not_called()
 
     def test_zero_disciples_retry_does_not_count_attack(self):
         flow = Mock()
@@ -435,7 +438,7 @@ class PixiuTests(unittest.TestCase):
         flow.screenshot = Mock()
         flow.panel = Mock(return_value=(1, [(True, (0, 0), a) for a in avatars]))
         existing = [SquadRow(avatars[0], None)]
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             self.assertEqual('handle', flow.dispatch_from_panel(existing=existing))
         self.assertEqual(4, flow.queue_capacity)
         self.assertEqual(2, dispatch.call_args.args[0])
@@ -460,7 +463,7 @@ class PixiuTests(unittest.TestCase):
         flow.panel = Mock(return_value=(1, slots))
         flow.panel_busy = [False, True, True, True]
         existing = [SquadRow(avatar, None) for avatar in avatars]
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             self.assertEqual('handle', flow.dispatch_from_panel(existing=existing))
         self.assertEqual(1, dispatch.call_args.args[0])
         self.assertEqual([id(row) for row in existing[1:]],
@@ -481,7 +484,7 @@ class PixiuTests(unittest.TestCase):
             flow.panel_busy = next(states)
             return 1, slots
         flow.panel = Mock(side_effect=panel)
-        with patch.object(March, 'dispatch_from_panel') as dispatch:
+        with patch.object(March, '_submit_from_panel') as dispatch:
             with self.assertRaises(NoFreeQueue):
                 flow.dispatch_from_panel(existing=[SquadRow(a, None) for a in avatars])
         dispatch.assert_not_called()
@@ -565,17 +568,17 @@ class PixiuTests(unittest.TestCase):
         flow.screenshot = Mock()
         flow.panel = Mock(return_value=(1, [(True, (0, 0), np.zeros((24, 24, 3)))]))
         flow.pipeline = Mock(return_value=False)
-        with patch.object(March, 'dispatch_from_panel', side_effect=TimeoutError):
+        with patch.object(March, '_submit_from_panel', side_effect=TimeoutError):
             with self.assertRaises(TimeoutError):
                 flow.dispatch_from_panel()
         flow.engine._try_auto_stamina.assert_not_called()
         flow.pipeline.return_value = True
         flow.engine.auto_stamina = False
-        with patch.object(March, 'dispatch_from_panel', side_effect=TimeoutError):
+        with patch.object(March, '_submit_from_panel', side_effect=TimeoutError):
             with self.assertRaisesRegex(RuntimeError, '未勾选'):
                 flow.dispatch_from_panel()
         flow.engine.auto_stamina = True
-        with patch.object(March, 'dispatch_from_panel', side_effect=[TimeoutError(), 'handle']) as dispatch:
+        with patch.object(March, '_submit_from_panel', side_effect=[TimeoutError(), 'handle']) as dispatch:
             self.assertEqual('handle', flow.dispatch_from_panel())
             self.assertEqual(2, dispatch.call_count)
 

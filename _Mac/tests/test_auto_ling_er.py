@@ -51,31 +51,31 @@ class LingErTests(unittest.TestCase):
         f,avatar=self.flow()
         f.allowed_queues=[2,3]
         h=MarchHandle(2,avatar,RallyTracker(state=S.ASSEMBLING),1)
-        with patch.object(March,'dispatch_from_panel',return_value=h) as dispatch:
+        with patch.object(March,'_submit_from_panel',return_value=h) as dispatch:
             result=f.dispatch_from_panel(queue=2,existing=[])
-        self.assertEqual(2,dispatch.call_args.args[1])
+        self.assertEqual(2,dispatch.call_args.args[0])
         self.assertTrue(result.tracker.assembled)
         self.assertFalse(result.tracker.departed)
 
     def test_busy_first_never_falls_back_to_free_second(self):
         f,_=self.flow();f.panel_busy=[True,False,False,False]
-        with patch.object(March,'dispatch_from_panel') as dispatch:
+        with patch.object(March,'_submit_from_panel') as dispatch:
             with self.assertRaises(NoFreeQueue):f.dispatch_from_panel(existing=[])
         dispatch.assert_not_called()
 
     def test_stamina_retry_requires_explicit_prompt_and_checkbox(self):
         f,avatar=self.flow();f.pipeline=Mock(return_value=True);f.engine.auto_stamina=True
         h=MarchHandle(1,avatar,RallyTracker(state=S.ASSEMBLING),1)
-        with patch.object(March,'dispatch_from_panel',side_effect=[TimeoutError(),h]) as dispatch:
+        with patch.object(March,'_submit_from_panel',side_effect=[TimeoutError(),h]) as dispatch:
             f.dispatch_from_panel(existing=[])
             self.assertEqual(2,dispatch.call_count)
         f.engine._try_auto_stamina.assert_called_once()
         f.engine.auto_stamina=False
-        with patch.object(March,'dispatch_from_panel',side_effect=TimeoutError()) as dispatch:
+        with patch.object(March,'_submit_from_panel',side_effect=TimeoutError()) as dispatch:
             with self.assertRaisesRegex(RuntimeError,'未勾选'):f.dispatch_from_panel(existing=[])
             self.assertEqual(1,dispatch.call_count)
         f.pipeline=Mock(return_value=False)
-        with patch.object(March,'dispatch_from_panel',side_effect=TimeoutError()) as dispatch:
+        with patch.object(March,'_submit_from_panel',side_effect=TimeoutError()) as dispatch:
             with self.assertRaises(TimeoutError):f.dispatch_from_panel(existing=[])
             self.assertEqual(1,dispatch.call_count)
 
@@ -163,7 +163,7 @@ class LingErTests(unittest.TestCase):
 
     def test_unselected_and_active_queue_are_never_submitted(self):
         f,avatar=self.flow();f.allowed_queues=[1,3]
-        with patch.object(March,'dispatch_from_panel') as dispatch:
+        with patch.object(March,'_submit_from_panel') as dispatch:
             with self.assertRaises(ValueError):f.dispatch_from_panel(queue=4,existing=[])
             f.active={3:Mock()}
             with self.assertRaises(NoFreeQueue):f.dispatch_from_panel(queue=3,existing=[])
@@ -341,6 +341,7 @@ class LingErTests(unittest.TestCase):
         portraits=np.random.default_rng(416).random((4,24,24,3))
         f.panel_busy=[False]*4
         f.panel.return_value=(1,[(True,(i,0),a) for i,a in enumerate(panels)])
+        f.ready_dispatch_panel.side_effect=lambda: f.panel(f.screenshot())
         f.text_button.return_value=True
         def dispatch(*args,queue,**kw):
             events.append(('dispatch',queue))
@@ -405,18 +406,14 @@ class LingErTests(unittest.TestCase):
         self.assertEqual([('dispatch',1),('dispatch',2),('dispatch',1)],events)
         self.assertEqual(3,f.confirm_returned_in_panel.call_count)
 
-    def test_panel_animation_retries_recognition_only(self):
-        f=LingEr.__new__(LingEr);f.pause=Mock();f.screenshot=Mock(return_value='settled')
-        with patch.object(March,'panel',side_effect=[RuntimeError('无法唯一识别出征面板气泡指向'),(2,[])]) as panel:
-            self.assertEqual((2,[]),f.panel('animating'))
-        self.assertEqual(2,panel.call_count)
-        f.screenshot.assert_called_once()
-        with patch.object(March,'panel',side_effect=RuntimeError('队列区域超出截图')) as panel:
-            with self.assertRaisesRegex(RuntimeError,'队列区域超出'):f.panel('bad')
-            self.assertEqual(1,panel.call_count)
-        with patch.object(March,'panel',side_effect=RuntimeError('气泡未出现')) as panel:
-            with self.assertRaisesRegex(RuntimeError,'气泡'):f.panel('bad')
-            self.assertEqual(4,panel.call_count)
+    def test_panel_animation_uses_shared_recovery_without_reclick(self):
+        f=LingEr.__new__(LingEr)
+        f.pause=Mock();f.screenshot=Mock();f.engine=Mock();f.record_panel_failure=Mock()
+        f.click=Mock();f.pipeline=Mock();f.target_dispatch_point=Mock(return_value=None)
+        f.panel=Mock(side_effect=[RuntimeError('气泡未出现'),(2,[])])
+        self.assertEqual((2,[]),f.ready_dispatch_panel())
+        self.assertEqual(2,f.panel.call_count)
+        f.click.assert_not_called();f.pipeline.assert_not_called()
 
     def test_successful_recheck_keeps_panel_and_baseline_for_multiple_queues(self):
         f,avatar=self.flow()

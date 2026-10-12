@@ -21,6 +21,18 @@ def main():
     assert Library.framework().MaaTaskerBindResource(tasker._handle,resource._handle)
     flow=March.__new__(March);flow.tasker=tasker
     flow.engine=SimpleNamespace(stop_event=threading.Event(),_state_lock=threading.RLock(),_current_tasker=None)
+    with np.load(root/'tests/data/march_third_selected.npz') as images:
+        from agent.custom.action.auto_pixiu import Pixiu
+        assert Pixiu.dispatch_panel_visible(flow, images['panel']), 'third squad panel fallback'
+        actual, slots = flow.panel(images['panel'])
+        assert actual == 3, actual
+        assert [s[0] for s in slots] == [True] * 4
+        assert flow.panel_busy == [True, True, False, True]
+    with np.load(root/'tests/data/march_other_user.npz') as images:
+        actual, slots = flow.panel(images['panel'])
+        assert actual == 1, actual
+        assert [slot[0] for slot in slots] == [True, True, False, True]
+        assert flow.panel_busy == [False, False, False, False]
     with np.load(root/'tests/data/march_screens.npz') as images:
         for name,selected,unlocked in [('panel1',1,[True,False,False,False]),('panel2',2,[True,True,False,False])]:
             actual,slots=flow.panel(images[name])

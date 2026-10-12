@@ -49,7 +49,9 @@ def generate() -> dict:
         if case.id == "auto_treatment":
             task_options.append(TREATMENT_DURATION_OPTION)
         if case.id == "auto_pixiu":
-            task_options.append("貔貅进攻次数")
+            task_options.extend(["貔貅进攻次数", "貔貅出征队列"])
+            for queue in range(1, 5):
+                task["pipeline_override"][f"貔貅出征队列{queue}"] = {"enabled": False}
         if case.id == "auto_ling_er":
             task_options.extend(["玲儿集结设置", "玲儿集结队列"])
             for queue in range(1, 5):
@@ -104,6 +106,14 @@ def generate() -> dict:
             },
         }
     if any(case.id == "auto_pixiu" for case in cases):
+        options["貔貅出征队列"] = {
+            "type": "checkbox", "label": "出征队列",
+            "description": "仅勾选队列参与出征；至少选择一队，默认全选，按队号优先派遣",
+            "default_case": ["1", "2", "3", "4"],
+            "cases": [{"name": str(queue), "label": str(queue),
+                       "pipeline_override": {f"貔貅出征队列{queue}": {"enabled": True}}}
+                      for queue in range(1, 5)],
+        }
         options["貔貅进攻次数"] = {
             "type": "input", "label": "",
             "description": "设置进攻次数，以确认小队出征计数",

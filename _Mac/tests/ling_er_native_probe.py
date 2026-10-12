@@ -14,7 +14,7 @@ resource=Resource()
 assert resource.post_bundle(root/'resource/base').wait().succeeded
 tasker=Tasker()
 assert Library.framework().MaaTaskerBindResource(tasker._handle, resource._handle)
-f=LingEr.__new__(LingEr);f.tasker=tasker
+f=LingEr.__new__(LingEr);f.tasker=tasker;f.level=4
 f.engine=SimpleNamespace(stop_event=threading.Event(),_state_lock=threading.RLock(),_current_tasker=None,log=print)
 f.click=lambda *p: print('click',p)
 f.pause=lambda seconds: None
@@ -106,3 +106,15 @@ with np.load(root/'tests/data/ling_er.npz') as images:
  assert len(f.snapshot_status_texts[0])>=2
 f.ocr = original_ocr
 print('LingEr native screenshot checks passed')
+
+# Opposite panel types must be rejected even though squad arrows share artwork.
+from agent.custom.action.march.march import March
+m=March.__new__(March);m.tasker=tasker;m.engine=f.engine
+with np.load(root/'tests/data/ling_er.npz') as images:
+ try:m.panel(images['panel'])
+ except RuntimeError as exc:assert '出征面板按钮' in str(exc),str(exc)
+ else:raise AssertionError('Common expedition accepted rally panel')
+with np.load(root/'tests/data/march_screens.npz') as images:
+ try:f.panel(images['panel1'])
+ except RuntimeError as exc:assert '组队面板按钮' in str(exc),str(exc)
+ else:raise AssertionError('Rally accepted expedition panel')

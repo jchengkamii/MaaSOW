@@ -61,14 +61,14 @@ class PixiuQueueTests(unittest.TestCase):
 
     def test_skips_unselected_free_squads_and_uses_fourth(self):
         flow, _ = self.make_flow()
-        with patch.object(March, 'dispatch_from_panel', return_value='handle') as dispatch:
+        with patch.object(March, '_submit_from_panel', return_value='handle') as dispatch:
             self.assertEqual('handle', flow.dispatch_from_panel())
             self.assertEqual(4, dispatch.call_args.args[0])
 
     def test_all_selected_busy_does_not_dispatch_unselected(self):
         flow, _ = self.make_flow()
         flow.panel_busy = [False, True, False, True]
-        with patch.object(March, 'dispatch_from_panel') as dispatch:
+        with patch.object(March, '_submit_from_panel') as dispatch:
             with self.assertRaises(NoFreeQueue):
                 flow.dispatch_from_panel()
             dispatch.assert_not_called()

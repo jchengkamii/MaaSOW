@@ -1,7 +1,7 @@
 """Single dispatch with a reusable handle for concurrent marches.
 
 Coordinates supplied by callers are Maa screenshot coordinates (short side 720).
-This module does not choose enemies, adjust disciples, or purchase stamina.
+Target selection is supplied by each task; panel recovery and stamina use are shared.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from maa.tasker import Tasker
 from maa.define import Rect
 
 from .state import MarchState, MarchTracker, parse_status
+from .dispatch_panel import DispatchPanel, NoFreeQueue, ZeroDisciples, RelocateAfterStamina
 
 
 def portrait(image):
@@ -77,7 +78,7 @@ class MarchHandle:
     panel_avatar: np.ndarray | None = None
 
 
-class March:
+class March(DispatchPanel):
     def __init__(self, engine):
         self.engine = engine
         if engine._resource is None:
@@ -150,6 +151,9 @@ class March:
             raise RuntimeError("通用行军点击失败")
 
     def text_button(self, text, timeout=8):
+        if text == self.dispatch_caption:
+            if self.zero_disciples():
+                raise ZeroDisciples(f'弟子数量为 0，未点击{self.dispatch_caption}')
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             image = self.screenshot()
@@ -170,6 +174,8 @@ class March:
                     icon = icons[0].box
                     self.click(left + icon.x + icon.w / 2, top + icon.y + icon.h / 2)
                 else:
+                    if text == self.dispatch_caption:
+                        self.pending_dispatch = True
                     self.click(box.x + box.w / 2, y0 + box.y + box.h / 2)
                 self.pause(.4)
                 return True
@@ -216,11 +222,27 @@ class March:
 
     def panel(self, image):
         h, w = image.shape[:2]
+        buttons = self.ocr(image[int(h * .5):int(h * .86)], [f"^{self.dispatch_caption}$"])
+        if len(buttons) != 1:
+            raise RuntimeError(f'未唯一确认{self.dispatch_caption}面板按钮，未检查或派遣队列')
         origin = int(h * .65)
         hits = self.templates(image[origin:], "bubble", .65)
-        if len(hits) != 1:
-            raise RuntimeError("无法唯一识别出征面板气泡指向")
-        box = hits[0].box
+        candidates = []
+        for hit in hits:
+            try:
+                candidate = self.panel_at_bubble(image, origin, hit.box)
+            except RuntimeError:
+                continue
+            selected, slots, busy = candidate
+            if slots[selected - 1][0]:
+                candidates.append(candidate)
+        if len(candidates) != 1:
+            raise RuntimeError(f"无法唯一识别出征面板气泡指向（原始候选 {len(hits)}，队号校验通过 {len(candidates)}）")
+        selected, slots, self.panel_busy = candidates[0]
+        return selected, slots
+
+    def panel_at_bubble(self, image, origin, box):
+        h, w = image.shape[:2]
         center = box.x + box.w / 2
         centers = [w * value for value in (.19, .396, .605, .816)]
         selected = min(range(4), key=lambda i: abs(centers[i] - center))
@@ -229,6 +251,8 @@ class March:
         scale = w / 690
         top = round(origin + box.y + box.h + 21 * scale)
         size = round(110 * scale)
+        if top < h * .75 or top + size > h * .98:
+            raise RuntimeError("气泡不在底部队列上方")
         slots = []
         busy = []
         for i, x in enumerate(centers):
@@ -241,8 +265,33 @@ class March:
             numbered = False if blocked else self.slot_number(crop[int(size * .72):, :int(size * .25)], i + 1)
             slots.append((numbered, (x, top + size / 2), portrait(crop)))
             busy.append(self.slot_busy(image, left, top, size))
-        self.panel_busy = busy
-        return selected + 1, slots
+        return selected + 1, slots, busy
+
+    def wait_selected_panel(self, desired):
+        confirmations = 0
+        last_error = '队列切换未生效'
+        for attempt in range(8):
+            image = self.screenshot()
+            try:
+                selected, slots = self.panel(image)
+                if selected == desired and slots[desired - 1][0]:
+                    confirmations += 1
+                    if confirmations >= 2:
+                        return selected, slots
+                else:
+                    confirmations = 0
+                    last_error = f'目标第 {desired} 队，当前第 {selected} 队'
+            except InterruptedError:
+                raise
+            except RuntimeError as exc:
+                confirmations = 0
+                last_error = str(exc)
+            if attempt < 7:
+                self.pause(.3)
+        recorder = getattr(self, 'record_panel_failure', None)
+        if callable(recorder):
+            recorder(image)
+        raise RuntimeError(f'切队后未稳定确认第 {desired} 队：{last_error}')
 
     def row_anchors(self, image):
         # Gathering squads show recall, while marching squads show speed-up.
@@ -352,16 +401,6 @@ class March:
         self.snapshot_rows_reliable = 0 < len(rows) <= 4
         return complete, rows, count if count is not None else len(rows)
 
-    def pre_dispatch_rows(self):
-        self.pre_snapshot_reliable = False
-        for attempt in range(3):
-            valid, rows, _ = self.snapshot()
-            if valid:
-                self.pre_snapshot_reliable = True
-                return rows
-            if attempt < 2:
-                self.pause(.3)
-        raise RuntimeError("无法读取出征前小队列表，请展开列表并关闭遮挡界面")
 
     def dispatch(self, target, queue=None, select_target=None, timeout=15):
         """Enter world, call target selector (or click point), dispatch exactly once."""
@@ -385,9 +424,18 @@ class March:
         if not self.text_button("进攻"):
             raise RuntimeError("未找到目标的进攻按钮")
         self.pause(.6)
-        return self.dispatch_from_panel(queue=queue, existing=existing, timeout=timeout)
+        for attempt in range(3):
+            try:
+                return self.dispatch_from_panel(queue=queue, existing=existing, timeout=timeout)
+            except RelocateAfterStamina:
+                if attempt == 2 or select_target is None:
+                    raise
+                existing = self.pre_dispatch_rows()
+                select_target(self.engine)
+                if not self.open_target_panel():
+                    raise RuntimeError('补体后无法重新打开出征面板')
 
-    def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
+    def _submit_from_panel(self, queue=None, *, existing=None, timeout=15):
         """Continue an already-open dispatch panel without navigating away."""
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("出征确认超时必须为有限正数")
@@ -403,10 +451,8 @@ class March:
             raise RuntimeError(f"第 {desired} 队未解锁或无法确认，未出征")
         if selected != desired:
             self.click(*slots[desired - 1][1])
-            self.pause(.6)
-            selected, slots = self.panel(self.screenshot())
-            if selected != desired or not slots[desired - 1][0]:
-                raise RuntimeError("队列切换未生效")
+            self.pause(.3)
+            selected, slots = self.wait_selected_panel(desired)
         # At most one auto-deploy click, followed by a fresh button recognition.
         if self.text_button("一键上阵", timeout=.6):
             self.pause(.6)
@@ -418,9 +464,14 @@ class March:
             raise RuntimeError(f"第 {desired} 队出现占用标记，未点击出征")
         if any(similarity(row.avatar, selected_avatar) >= .65 for row in existing):
             raise RuntimeError("所选队伍已在行军或与已有队伍头像相同，无法唯一跟踪")
-        if not self.text_button("出征"):
-            raise RuntimeError("未找到出征按钮")
+        if self.zero_disciples():
+            raise ZeroDisciples("弟子数量为 0，等待队伍返回")
         handle = MarchHandle(desired, selected_avatar, MarchTracker(), panel_avatar=selected_avatar.copy())
+        self.pending_handle = handle
+        self.pending_dispatch = True
+        if not self.text_button("出征"):
+            self.pending_dispatch = False
+            raise RuntimeError("未找到出征按钮")
         deadline = time.monotonic() + timeout
         previous_added = None
         added_confirmations = 0
@@ -431,10 +482,12 @@ class March:
             matches = [row for row, score in zip(rows, scores) if score >= .65]
             confirmed = None
             method = "头像唯一匹配"
-            if valid and len(matches) == 1 and matches[0].status is not None:
+            if valid and len(matches) == 1 and matches[0].status in self.dispatch_states:
                 confirmed = matches[0]
             else:
                 added = new_dispatched_row(existing, rows, count) if valid and baseline_known else None
+                if added is not None and added.status not in self.dispatch_states:
+                    added = None
                 if added is None:
                     previous_added = None
                     added_confirmations = 0

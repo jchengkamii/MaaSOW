@@ -22,6 +22,8 @@ def main():
     flow=March.__new__(March);flow.tasker=tasker
     flow.engine=SimpleNamespace(stop_event=threading.Event(),_state_lock=threading.RLock(),_current_tasker=None)
     with np.load(root/'tests/data/march_third_selected.npz') as images:
+        from agent.custom.action.auto_pixiu import Pixiu
+        assert Pixiu.dispatch_panel_visible(flow, images['panel']), 'third squad panel fallback'
         actual, slots = flow.panel(images['panel'])
         assert actual == 3, actual
         assert [s[0] for s in slots] == [True] * 4

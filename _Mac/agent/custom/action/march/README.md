@@ -37,3 +37,16 @@ target 使用 Maa 归一化截图坐标。需要业务导航时可用
 已经打开出征面板时，可用 `handle = march.dispatch_from_panel(queue=1)` 直接续接，
 随后调用 `march.wait(handle)`。若调用方有出征前小队快照，可传 `existing=rows` 检查头像冲突。
 进攻菜单使用文字定位后匹配上方红色图标，点击图标而非文字。
+
+
+所有使用出征面板的功能都继承 `March`，通过 `dispatch()` 或 `dispatch_from_panel()`
+进入共享的 `DispatchPanel` 流程：等待动画、确认目标后补点入口、处理自动补体、
+复核空闲队列和旧占用记录、稳定确认切队、检查弟子数量、确认唯一新增行军队伍。
+提交结果不明确时只恢复界面并核对对应队伍，不再次提交；仅明确的体力不足提示
+允许补体后重试。任务计数由业务层根据确认出发或完整返回规则决定。
+
+只读返回复核也使用 `ready_dispatch_panel()`，随后至少两帧核对队号、占用和派遣前头像。
+`panel(image)` 是单帧识别接口，业务流程不要用它代替面板准备和恢复。
+目标任务提供 `target_dispatch_point(image)` 和 `target_tooltip_pattern`，以及
+`dispatch_caption`（出征或组队）；通用入口要求图标连续三帧稳定。
+识别失败的原始截图保存在 `debug/<任务名>_panel_failure.png`。

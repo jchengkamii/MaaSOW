@@ -31,6 +31,7 @@ class MarchTests(unittest.TestCase):
         flow = self.make_dispatch()
         # Exercise the real candidate chooser with one unrelated map bubble.
         del flow.panel
+        flow.ocr = Mock(return_value=[Mock(text="出征")])
         image = np.zeros((1300,720,3), dtype=np.uint8)
         flow.templates = Mock(return_value=[SimpleNamespace(box='noise'), SimpleNamespace(box='real')])
         slots = [(True, (0,0), np.zeros((24,24,3)))] * 4
@@ -61,7 +62,7 @@ class MarchTests(unittest.TestCase):
         added = SquadRow(c, parse_status('去X：235Y.3481有'))
         flow.snapshot = Mock(side_effect=[(True, [old[0], added], 2),
                                           (True, [added], 1), (True, [added], 1)])
-        handle = flow.dispatch_from_panel(queue=1, existing=old)
+        handle = flow._submit_from_panel(queue=1, existing=old)
         self.assertIs(c, handle.avatar)
         self.assertEqual(3, flow.snapshot.call_count)
         self.assertEqual(1, sum(call.args[0] == '出征' for call in flow.text_button.call_args_list))
@@ -82,7 +83,7 @@ class MarchTests(unittest.TestCase):
         added = SquadRow(c, S.OUTBOUND)
         flow.snapshot = Mock(return_value=(True, [old[1], added, old[0]], 3))
         original_panel_avatar = flow.panel.return_value[1][0][2].copy()
-        handle = flow.dispatch_from_panel(queue=1, existing=old)
+        handle = flow._submit_from_panel(queue=1, existing=old)
         self.assertIs(handle.avatar, c)
         np.testing.assert_array_equal(original_panel_avatar, handle.panel_avatar)
         self.assertIsNot(handle.panel_avatar, handle.avatar)
@@ -95,7 +96,7 @@ class MarchTests(unittest.TestCase):
         avatar = np.random.default_rng(93).random((24,24,3))
         flow.snapshot = Mock(return_value=(True, [SquadRow(avatar, S.OUTBOUND)], 1))
         with self.assertRaises(TimeoutError):
-            flow.dispatch_from_panel(queue=1, existing=[], timeout=.01)
+            flow._submit_from_panel(queue=1, existing=[], timeout=.01)
 
     def test_status_does_not_accept_timers(self):
         self.assertEqual(S.OUTBOUND, parse_status('去 X:919 Y:6'))
@@ -176,6 +177,7 @@ class MarchTests(unittest.TestCase):
         flow.screenshot = Mock(return_value=np.zeros((1300, 720, 3), dtype=np.uint8))
         flow.click = Mock()
         flow.pause = Mock()
+        flow.zero_disciples = Mock(return_value=False)
         flow.text_button = Mock(return_value=True)
         flow.panel = Mock(return_value=(1, [(unlocked, (100, 1100), avatar)] * 4))
         return flow
@@ -192,7 +194,7 @@ class MarchTests(unittest.TestCase):
         flow = self.make_dispatch()
         avatar = flow.panel.return_value[1][0][2]
         flow.snapshot = Mock(return_value=(True, [SquadRow(avatar, S.OUTBOUND)], 1))
-        handle = flow.dispatch_from_panel(queue=1)
+        handle = flow._submit_from_panel(queue=1)
         self.assertEqual(1, handle.queue)
         flow.pipeline.assert_not_called()
         self.assertEqual(['一键上阵', '出征'],
@@ -200,15 +202,19 @@ class MarchTests(unittest.TestCase):
 
     def test_locked_queue_never_dispatches(self):
         flow = self.make_dispatch(unlocked=False)
-        with self.assertRaisesRegex(RuntimeError, '未解锁'):
+        with self.assertRaisesRegex(RuntimeError, '空闲队伍'):
             flow.dispatch((300, 600), queue=1)
         self.assertEqual(['进攻'], [call.args[0] for call in flow.text_button.call_args_list])
 
     def test_unconfirmed_dispatch_is_not_replayed(self):
         flow = self.make_dispatch()
         flow.snapshot = Mock(return_value=(True, [], 0))
-        with self.assertRaises(TimeoutError):
+        flow.pipeline.side_effect = lambda name: name != "通用识别补充体力按钮"
+        flow.recover_world = Mock()
+        flow.reconcile_pending_dispatch = Mock(side_effect=RuntimeError('之前出征结果仍不明确'))
+        with self.assertRaisesRegex(RuntimeError, '结果仍不明确'):
             flow.dispatch((300, 600), queue=1, timeout=.001)
+        flow.recover_world.assert_called_once()
         self.assertEqual(1, sum(call.args[0] == '出征' for call in flow.text_button.call_args_list))
 
     def test_stop_interrupts_wait(self):

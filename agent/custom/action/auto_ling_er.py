@@ -6,7 +6,8 @@ import time
 from dataclasses import dataclass
 
 from maa.pipeline import JRecognitionType, JTemplateMatch
-from agent.custom.action.auto_pixiu import Pixiu, NoFreeQueue, ZeroDisciples, attack_count
+from agent.custom.action.auto_pixiu import attack_count
+from agent.custom.action.march.dispatch_panel import NoFreeQueue, ZeroDisciples, RelocateAfterStamina
 from agent.custom.action.march.march import March, similarity
 from agent.custom.action.march.state import MarchState as S, MarchTracker
 
@@ -61,18 +62,38 @@ class RallyTracker(MarchTracker):
                                count_decreased=count_decreased and self.assembled and self.departed)
 
 
-class LingEr(Pixiu):
-    def panel(self, image):
-        # The rally popup animates into place. Retry recognition only, never the
-        # rally/submit click, while its pointer is not yet fully visible.
-        for attempt in range(4):
-            try:
-                return super().panel(image)
-            except RuntimeError as exc:
-                if '气泡' not in str(exc) or attempt == 3:
-                    raise
-                self.pause(.35)
-                image = self.screenshot()
+class LingEr(March):
+    dispatch_caption = '组队'
+    dispatch_states = (S.ASSEMBLING,)
+    target_tooltip_pattern = r'等级\s*\d+\s*妖兽洞穴'
+    diagnostic_name = 'ling_er'
+
+    def target_dispatch_point(self, image):
+        h, w = image.shape[:2]
+        title = self.ocr(image[int(h*.25):int(h*.65), int(w*.1):int(w*.9)],
+                         [rf'^等级\s*{self.level}\s*妖兽洞穴$'])
+        if len(title) != 1:
+            return None
+        left, top = int(w*.15), int(h*.45)
+        icons = self.asset(image[top:int(h*.87), left:int(w*.85)], 'rally')
+        if len(icons) != 1:
+            return None
+        box = icons[0].box
+        return left + box.x + box.w/2, top + box.y + box.h/2
+
+    def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
+        allowed = getattr(self, 'allowed_queues', [1])
+        queue = allowed[0] if queue is None else queue
+        if queue not in allowed:
+            raise ValueError(f'第 {queue} 队未勾选，不参与集结')
+        if queue in getattr(self, 'active', {}):
+            raise NoFreeQueue(f'第 {queue} 队仍在跟踪中，不能重复派遣')
+        handle = super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
+        if handle.tracker.state != S.ASSEMBLING:
+            raise RuntimeError('已点击组队，但未确认集结中状态；停止以防重复集结')
+        handle.tracker = RallyTracker(state=S.ASSEMBLING, assembled=True)
+        return handle
+
 
     def asset(self, image, name):
         result = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
@@ -147,49 +168,11 @@ class LingEr(Pixiu):
 
     def text_button(self, text, timeout=8):
         if text == '进攻':
-            return self.icon_button('rally', (.15, .45, .85, .87), timeout)
+            return self.open_target_panel(timeout)
         if text == '出征':
-            if self.zero_disciples():
-                raise ZeroDisciples("所选队列弟子数量为 0，未点击组队")
             return March.text_button(self, '组队', timeout)
         return March.text_button(self, text, timeout)
 
-    def dispatch_from_panel(self, queue=None, *, existing=None, timeout=15):
-        allowed = getattr(self, 'allowed_queues', [1])
-        queue = allowed[0] if queue is None else queue
-        if queue not in allowed:
-            raise ValueError(f"第 {queue} 队未勾选，不参与集结")
-        if queue in getattr(self, 'active', {}):
-            raise NoFreeQueue(f"第 {queue} 队仍在跟踪中，不能重复派遣")
-        existing = existing or []
-        for _ in range(2):
-            _, slots = self.panel(self.screenshot())
-            if not slots[queue - 1][0]:
-                raise RuntimeError(f"第 {queue} 队未解锁或队号识别失败")
-            avatar = slots[queue - 1][2]
-            if self.panel_busy[queue - 1] or any(similarity(row.avatar, avatar) >= .65 for row in existing):
-                if not hasattr(self, 'blocked'):
-                    self.blocked = {}
-                self.blocked[queue] = (avatar, 0)
-                raise NoFreeQueue(f"第 {queue} 队正在占用，等待返回")
-            self.pause(.35)
-        try:
-            handle = March.dispatch_from_panel(self, queue, existing=existing, timeout=timeout)
-        except ZeroDisciples:
-            raise
-        except (RuntimeError, TimeoutError):
-            # Only an explicit blocked-stamina prompt permits retrying submission.
-            if not self.pipeline('通用识别补充体力按钮'):
-                raise
-            if not self.engine.auto_stamina:
-                raise RuntimeError('体力不足，未勾选自动补体')
-            if not self.engine._try_auto_stamina(self.tasker):
-                raise RuntimeError('自动补体未成功或没有可用体力来源')
-            handle = March.dispatch_from_panel(self, queue, existing=existing, timeout=timeout)
-        if handle.tracker.state != S.ASSEMBLING:
-            raise RuntimeError('已点击组队，但未确认集结中状态；停止以防重复集结')
-        handle.tracker = RallyTracker(state=S.ASSEMBLING, assembled=True)
-        return handle
 
     def confirm_returned_in_panel(self, handle, *, keep_open=False):
         """Read-only squad inspection when brief travel/return frames were missed."""
@@ -207,10 +190,20 @@ class LingEr(Pixiu):
                 raise RuntimeError('无法打开集结面板复核返回状态，未计数、未再次组队')
             self.return_panel_open = True
         confirmed = False
+        restored = False
         try:
             self.pause(.6)
             for _ in range(2):
-                _, slots = self.panel(self.screenshot())
+                for attempt in range(3):
+                    try:
+                        _, slots = self.ready_dispatch_panel()
+                        break
+                    except RelocateAfterStamina:
+                        if attempt == 2:
+                            raise
+                        self.locate(self.engine)
+                        if not self.open_target_panel():
+                            raise RuntimeError('补体后无法重新打开集结面板复核')
                 unlocked, _, avatar = slots[handle.queue - 1]
                 score = similarity(avatar, handle.panel_avatar)
                 busy = self.panel_busy[handle.queue - 1]
@@ -220,9 +213,17 @@ class LingEr(Pixiu):
                 self.pause(.35)
             confirmed = True
             return True
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            self.engine.log(f'返回复核面板未确认：{exc}；本次未计数')
+            self.recover_world()
+            restored = True
+            return False
         finally:
             if not confirmed or not keep_open:
-                self.close_dispatch_panel()
+                if not restored:
+                    self.close_dispatch_panel()
                 self.return_panel_open = False
                 self.return_panel_rows = None
 
