@@ -30,6 +30,11 @@ def prepare(source: Path) -> None:
         path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     replace("src-tauri/Cargo.toml", 'version = "0.1.0"', 'version = "2.4.5"')
 
+    # The interface icon is loaded at runtime; the executable needs build-time icons too.
+    for extension in ("png", "ico"):
+        shutil.copyfile(ROOT / f"resource/app_icon.{extension}",
+                        source / f"src-tauri/icons/icon.{extension}")
+
     for name in ("mainRelease.ts", "mainUpdate.ts", "mainRelease.test.mjs"):
         shutil.copyfile(ROOT / "tools/mxu" / name, source / "src/services" / name)
     shutil.copyfile(ROOT / "tools/mxu/UpdateSection.tsx", source / "src/components/settings/UpdateSection.tsx")
