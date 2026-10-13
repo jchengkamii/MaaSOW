@@ -16,6 +16,7 @@ class MacBasicTests(unittest.TestCase):
         with patch.object(mac,'require_permissions'), patch.object(mac,'MacOSController',return_value=controller) as factory:
             self.assertIs(controller,mac.connect_window(SimpleNamespace(hwnd=81)))
             self.assertEqual(81,factory.call_args.kwargs['window_id'])
+            self.assertEqual(mac.MaaMacOSInputMethodEnum.PostToPid,factory.call_args.kwargs['input_method'])
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 {
   "interface_version": 2,
   "name": "MaaSOW",
-  "label": "九霄小助手",
+  "label": "MaaSOW",
   "title": "九霄小助手 · MXU macOS",
   "icon": "resource/app_icon.png",
   "version": "1.0.1",

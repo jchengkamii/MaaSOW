@@ -55,3 +55,9 @@ Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务�
 
 最新主工程业务修复已同步，来源与文件校验见 `同步记录.md`、`source_snapshot.json`。
 同时提供 Mac 脚本更新包和定制 MXU 源码；自动更新设置页需要在 Mac 上运行 `构建定制MXU.command` 编译定制前端，详见 `tools/AUTO_UPDATE.md`。本包默认仍为官方 MXU 2.6.1，不宣称已启用该定制设置页。
+
+## 环境检查与修复
+
+环境准备脚本先核对本地 Python 依赖版本与安装位置，并实际测试 Pillow 保存 PNG；依赖缺失或损坏时强制重装。脚本清除外部 PYTHONHOME/PYTHONPATH，避免误用其他工程的 Python 包。
+
+准备完成前检查 Mac 原生运行库、资源、任务入口、Worker 和 Agent，检查过程不连接或操作游戏。可单独执行 `.venv/bin/python3 tools/diagnose.py --environment-only`；普通 `检查环境.command` 继续提供权限、窗口与截图诊断。
