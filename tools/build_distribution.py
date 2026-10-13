@@ -13,6 +13,23 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def resolve_version(explicit: str | None = None) -> str:
+    if explicit is not None:
+        return explicit.removeprefix("v")
+    result = subprocess.run(
+        ["git", "ls-remote", "--tags", "origin", "refs/tags/v*"],
+        cwd=ROOT, check=True, capture_output=True, text=True, timeout=30,
+    )
+    versions = [
+        match.group(1)
+        for line in result.stdout.splitlines()
+        if (match := re.search(r"\srefs/tags/v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$", line))
+    ]
+    if not versions:
+        raise RuntimeError("No stable Git release tag found; pass --version explicitly")
+    return max(versions, key=lambda value: tuple(map(int, value.split("."))))
+
+
 def build_package(root: Path, output: Path, version: str, *, scripts_only: bool = False) -> Path:
     if not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version):
         raise ValueError("version must be a stable major.minor.patch version")
@@ -55,7 +72,8 @@ def main() -> None:
     parser.add_argument("--version", default=None)
     parser.add_argument("--scripts-only", action="store_true")
     args = parser.parse_args()
-    version = args.version or json.loads((ROOT / "interface.json").read_text(encoding="utf-8-sig"))["version"]
+    version = resolve_version(args.version)
+    print(f"Packaging Git release v{version} for Windows x86_64", flush=True)
     subprocess.run([sys.executable, "-X", "utf8", str(ROOT / "generate_interface.py")], cwd=ROOT, check=True)
     subprocess.run([sys.executable, "-X", "utf8", "-m", "unittest", "discover", "-s", "tests"], cwd=ROOT, check=True)
     print(build_package(ROOT, ROOT / "dist", version, scripts_only=args.scripts_only), flush=True)

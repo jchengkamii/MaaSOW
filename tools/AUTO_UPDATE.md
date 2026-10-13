@@ -46,7 +46,7 @@ pnpm tauri build --no-bundle
 产物为 `build/mxu-reference/src-tauri/target/release/mxu.exe`。
 构建脚本锁定上游 commit，遇到不匹配版本会拒绝打补丁。
 定制代码在 `tools/mxu/`，对上游的适配在 `tools/prepare_mxu.py`。
-完整发行包：`python tools/build_distribution.py`。
+完整发行包：`python tools/build_distribution.py`，默认读取 origin 最新稳定版本标签（如 v1.1.12），包内版本与标签一致；离线构建可用 `--version 1.1.12` 指定。
 脚本更新包：`python tools/build_distribution.py --scripts-only --version 1.1.123`。
 ZIP 根目录直接包含 `interface.json`，不要额外套一层文件夹。
 
