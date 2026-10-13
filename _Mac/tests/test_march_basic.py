@@ -1,6 +1,8 @@
 """基础行军检查：面板区分、队列选择、返回和防重复提交。"""
 import unittest
 from unittest.mock import Mock
+from types import SimpleNamespace
+import re
 import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
 from agent.custom.action.march.state import MarchState as S, MarchTracker
@@ -74,6 +76,20 @@ class MarchBasicTests(unittest.TestCase):
         self.assertFalse(tracker.observe(**missing))
         self.assertTrue(tracker.observe(**missing))
         self.assertEqual(S.COMPLETED,tracker.state)
+
+    def test_rally_search_accepts_both_mutually_exclusive_bosses(self):
+        for name in ('妖兽洞穴', '兽潮首领'):
+            f=LingEr.__new__(LingEr)
+            f.engine=Mock();f.level=8
+            f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
+            f.ocr=Mock(side_effect=[[SimpleNamespace(text=name)],[SimpleNamespace(text='8级')]])
+            self.assertEqual(8,f.search_level())
+            self.assertIsNotNone(re.fullmatch(f.target_title(),f'等级8 {name}'))
+            other='兽潮首领' if name=='妖兽洞穴' else '妖兽洞穴'
+            self.assertIsNone(re.fullmatch(f.target_title(),f'等级8 {other}'))
+            f.ocr.side_effect=[[SimpleNamespace(text=other)]]
+            with self.assertRaisesRegex(RuntimeError,'目标发生变化'):
+                f.search_level()
 
 
 if __name__ == '__main__':

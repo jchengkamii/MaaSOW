@@ -1,4 +1,4 @@
-"""Selected-squad Ling'er rallies, counted only after the full return lifecycle."""
+"""Ling'er and world boss rallies sharing the same squad lifecycle."""
 from __future__ import annotations
 
 import re
@@ -65,13 +65,26 @@ class RallyTracker(MarchTracker):
 class LingEr(March):
     dispatch_caption = '组队'
     dispatch_states = (S.ASSEMBLING,)
-    target_tooltip_pattern = r'等级\s*\d+\s*妖兽洞穴'
+    target_names = ('妖兽洞穴', '兽潮首领')
+
+    @property
+    def target_tooltip_pattern(self):
+        name = getattr(self, 'target_name', None)
+        names = re.escape(name) if name in self.target_names else '(?:妖兽洞穴|兽潮首领)'
+        return rf'等级\s*\d+\s*{names}'
+
+    def target_title(self):
+        name = getattr(self, 'target_name', None)
+        if name not in self.target_names:
+            raise RuntimeError('尚未确认搜索目标，未集结')
+        return rf'^等级\s*{self.level}\s*{re.escape(name)}$'
+
     diagnostic_name = 'ling_er'
 
     def target_dispatch_point(self, image):
         h, w = image.shape[:2]
         title = self.ocr(image[int(h*.25):int(h*.65), int(w*.1):int(w*.9)],
-                         [rf'^等级\s*{self.level}\s*妖兽洞穴$'])
+                         [self.target_title()])
         if len(title) != 1:
             return None
         left, top = int(w*.15), int(h*.45)
@@ -126,9 +139,20 @@ class LingEr(March):
     def search_level(self):
         image = self.screenshot()
         h, w = image.shape[:2]
-        # Confirm boss content and read only the level above the slider.
-        if not self.ocr(image[int(h*.58):int(h*.72)], ['^妖兽洞穴$']):
-            raise RuntimeError("未确认兽潮首领的妖兽洞穴，停止调整等级")
+        # Activities are mutually exclusive: identify the current boss content.
+        # This crop excludes the 兽潮首领 tab so its label cannot count as a target.
+        targets = self.ocr(image[int(h*.58):int(h*.72)], [r'^(?:妖兽洞穴|兽潮首领)$'])
+        if len(targets) != 1:
+            raise RuntimeError('未唯一确认妖兽洞穴或兽潮首领，停止调整等级')
+        name = targets[0].text.strip()
+        if name not in self.target_names:
+            raise RuntimeError('搜索目标名称无法确认，停止调整等级')
+        previous = getattr(self, 'target_name', None)
+        if previous is not None and previous != name:
+            raise RuntimeError('调整等级时搜索目标发生变化，未点击搜索')
+        if previous is None:
+            self.engine.log(f'当前集结目标：{name}')
+        self.target_name = name
         hits = self.ocr(image[int(h*.82):int(h*.865), int(w*.38):int(w*.62)], [r'^\d+级$'])
         if len(hits) != 1:
             raise RuntimeError("无法唯一识别搜索等级，未点击搜索")
@@ -156,15 +180,16 @@ class LingEr(March):
             raise RuntimeError("未找到大地图左下角搜索图标")
         if not self.region_text('^兽潮首领$', (.62, .53, 1, .61), click=True):
             raise RuntimeError("未找到兽潮首领页签")
+        self.target_name = None
         self.adjust_level(self.level)
         if not self.region_text('^搜索$', (.26, .89, .73, .98), click=True):
             raise RuntimeError("未找到底部搜索按钮")
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            if self.region_text(rf'^等级\s*{self.level}\s*妖兽洞穴$', (.1, .25, .9, .65)):
+            if self.region_text(self.target_title(), (.1, .25, .9, .65)):
                 return
             self.pause(.3)
-        raise RuntimeError("搜索后未确认指定等级妖兽洞穴，未集结")
+        raise RuntimeError(f'搜索后未确认 {self.level} 级{self.target_name}，未集结')
 
     def text_button(self, text, timeout=8):
         if text == '进攻':
@@ -373,4 +398,4 @@ def run(engine, case):
             flow.return_panel_open = False
             flow.return_panel_rows = None
         flow.pause(.5)
-    return f'已完成 {count} 次玲儿降妖集结，等级 {level}，参与队列：{",".join(map(str, queues))}'
+    return f'已完成 {count} 次{flow.target_name}集结，等级 {level}，参与队列：{",".join(map(str, queues))}'
