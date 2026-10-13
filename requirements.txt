@@ -1,4 +1,8 @@
+# Python 3.12 x64. Includes the dependencies required by MaaFw and the Agent.
+# Windows prerequisites cannot be installed by pip: VC++ x64, WebView2 and
+# the project-local Python runtime. Run 使用前环境准备.bat before using MXU.
 MaaFw==5.12.3
 MaaAgentBinary==1.0.1
 numpy==2.5.3
 StrEnum==0.4.15
+Pillow==12.3.0

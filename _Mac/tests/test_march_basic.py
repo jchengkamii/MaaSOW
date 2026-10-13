@@ -1,6 +1,8 @@
 """基础行军检查：面板区分、队列选择、返回和防重复提交。"""
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import re
 import numpy as np
@@ -11,6 +13,20 @@ from agent.custom.action.auto_ling_er import LingEr, RallyTracker
 
 
 class MarchBasicTests(unittest.TestCase):
+    def test_panel_failure_screenshot_is_saved(self):
+        from PIL import Image
+        image = np.zeros((2, 3, 3), dtype=np.uint8)
+        image[:] = [10, 20, 30]
+        flow = self.flow(March)
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'agent/custom/action/march/dispatch_panel.py'
+            with patch('agent.custom.action.march.dispatch_panel.__file__', str(source)):
+                March.record_panel_failure(flow, image)
+            with Image.open(root / 'debug/march_panel_failure.png') as saved:
+                self.assertEqual((3, 2), saved.size)
+                self.assertEqual((30, 20, 10), saved.getpixel((0, 0)))
+
     def flow(self, kind):
         f=kind.__new__(kind)
         f.engine=Mock(auto_stamina=False)

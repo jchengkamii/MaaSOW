@@ -12,6 +12,14 @@
 4. 选择游戏窗口控制器和测试资源，连接窗口后勾选任务并运行。
 
 以后直接打开 EXE 即可；环境异常时重新运行环境准备脚本。请勿单独移动 EXE。
+也可以双击“启动自动化前台.bat”，它会先检查并准备环境，通过后打开前台。
+
+`requirements.txt` 只声明 Python 包。完整运行还需要 Python 3.12 x64、
+VC++ x64 运行库、WebView2 Runtime，以及完整发行包中的 `maafw/`、资源和 EXE。
+“使用前环境准备.bat”负责准备这些外部运行环境并检查任务和 Agent；
+不需要另装系统 Python。VC++ 与 WebView2 的官方说明见
+[微软 VC++ 文档](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+和 [WebView2 部署文档](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)。
 
 ## 开发
 
@@ -23,6 +31,10 @@ py -3.12 -m venv .venv
 & .\.venv\Scripts\python.exe .\generate_interface.py
 & .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+`.venv` 用于开发和测试；前台按 `interface.json` 使用 `.runtime/python/python.exe`。
+只在 `.venv` 或系统 Python 中运行 `pip install -r requirements.txt` 不会准备前台的 Agent 环境。
+需要打开前台时仍请运行环境准备或启动 BAT。
 
 工程约定见 [AGENTS.md](AGENTS.md)，第三方许可证见 [licenses/](licenses/)。
 

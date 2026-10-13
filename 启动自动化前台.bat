@@ -1,30 +1,18 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
+chcp 65001 >nul
 cd /d "%~dp0"
-
-set "PROJECT_PYTHON=%~dp0.venv\Scripts\python.exe"
-
-if not exist "%PROJECT_PYTHON%" (
-    echo [MaaSOW] Creating Python 3.12 virtual environment...
-    py -3.12 -m venv "%~dp0.venv"
-    if errorlevel 1 goto :error
-)
-
-"%PROJECT_PYTHON%" -c "import maa" >nul 2>nul
-if errorlevel 1 (
-    echo [MaaSOW] Installing Python dependencies...
-    "%PROJECT_PYTHON%" -m pip install -r "%~dp0requirements.txt"
-    if errorlevel 1 goto :error
-)
-
-echo [MaaSOW] Updating MXU task cards...
-"%PROJECT_PYTHON%" "%~dp0generate_interface.py"
-if errorlevel 1 goto :error
 
 if not exist "%~dp0九霄小助手.exe" (
     echo [MaaSOW] Cannot find 九霄小助手.exe
     goto :error
 )
+
+rem Use the same project-local Python and native prerequisites as interface.json.
+set "SETUP_PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" set "SETUP_PS=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+"%SETUP_PS%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\prepare_environment.ps1"
+if errorlevel 1 goto :error
 
 start "" "%~dp0九霄小助手.exe"
 exit /b 0

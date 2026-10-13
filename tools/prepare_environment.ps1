@@ -32,6 +32,18 @@ function Install-MicrosoftRuntime([string]$Url, [string]$Name, [string[]]$Argume
     if ($Process.ExitCode -eq 3010) { throw 'Runtime installed. Restart Windows, then run the environment preparation BAT again.' }
     if ($Process.ExitCode -notin @(0, 1638)) { throw "$Name failed, exit code $($Process.ExitCode)" }
 }
+function Test-NativeLibraries([string[]]$Libraries) {
+    foreach ($Library in $Libraries) {
+        $Handle = [MaaRuntimeProbe]::LoadLibraryEx($Library, [IntPtr]::Zero, 0x1100)
+        if ($Handle -eq [IntPtr]::Zero) {
+            $Code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            Write-Host "[MaaSOW] Cannot load $Library (Windows error $Code)."
+            return $false
+        }
+        [void][MaaRuntimeProbe]::FreeLibrary($Handle)
+    }
+    return $true
+}
 function Test-WebView {
     foreach ($Base in @('HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients',
                         'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients',
@@ -62,15 +74,21 @@ public static class MaaRuntimeProbe {
     [DllImport("kernel32")] public static extern bool FreeLibrary(IntPtr module);
 }
 '@
-    $NativeLibrary = Join-Path $Root 'maafw\MaaFramework.dll'
-    if (-not (Test-Path -LiteralPath $NativeLibrary)) { throw 'Missing maafw. Extract the complete package.' }
-    $Handle = [MaaRuntimeProbe]::LoadLibraryEx($NativeLibrary, [IntPtr]::Zero, 0x1100)
-    if ($Handle -eq [IntPtr]::Zero) {
-        Install-MicrosoftRuntime 'https://aka.ms/vs/17/release/vc_redist.x64.exe' 'vc_redist.x64.exe' @('/install','/passive','/norestart')
-        $Handle = [MaaRuntimeProbe]::LoadLibraryEx($NativeLibrary, [IntPtr]::Zero, 0x1100)
-        if ($Handle -eq [IntPtr]::Zero) { throw 'MaaFramework DLL still cannot load. Check Windows version and missing files.' }
+    $NativeLibraries = @('MaaFramework.dll', 'MaaToolkit.dll', 'MaaWin32ControlUnit.dll',
+                         'MaaAgentClient.dll', 'MaaAgentServer.dll') | ForEach-Object { Join-Path $Root "maafw\$_" }
+    foreach ($Library in $NativeLibraries) {
+        if (-not (Test-Path -LiteralPath $Library -PathType Leaf)) {
+            throw "Missing $Library. Extract the complete package; pip does not install the frontend's maafw directory."
+        }
     }
-    [void][MaaRuntimeProbe]::FreeLibrary($Handle)
+    $MicrosoftLibraries = @('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') |
+        ForEach-Object { Join-Path ([Environment]::SystemDirectory) $_ }
+    if (-not (Test-NativeLibraries ($MicrosoftLibraries + $NativeLibraries))) {
+        Install-MicrosoftRuntime 'https://aka.ms/vs/17/release/vc_redist.x64.exe' 'vc_redist.x64.exe' @('/install','/passive','/norestart')
+        if (-not (Test-NativeLibraries ($MicrosoftLibraries + $NativeLibraries))) {
+            throw 'Native DLLs still cannot load. Check the DLL and Windows error above, Windows version and missing files.'
+        }
+    }
     if (-not (Test-WebView)) {
         Install-MicrosoftRuntime 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' 'MicrosoftEdgeWebview2Setup.exe' @('/silent','/install')
         if (-not (Test-WebView)) { throw 'WebView2 installation could not be verified. Restart and retry the environment preparation BAT.' }
@@ -109,7 +127,7 @@ for stream in (sys.stdout, sys.stderr):
             & $Python -X utf8 $GetPip --no-warn-script-location --disable-pip-version-check
             if ($LASTEXITCODE -ne 0) { throw 'pip setup failed. Check network access to pypi.org.' }
         }
-        & $Python -X utf8 -m pip install --disable-pip-version-check --no-warn-script-location --only-binary=:all: -r (Join-Path $Root 'requirements.txt')
+        & $Python -X utf8 -m pip install --disable-pip-version-check --no-warn-script-location --only-binary=:all: --force-reinstall -r (Join-Path $Root 'requirements.txt')
         if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Check network access and retry the environment preparation BAT.' }
     }
     & $Python -X utf8 (Join-Path $Root 'generate_interface.py')

@@ -14,6 +14,10 @@ Python 只放在本目录 .runtime，不修改系统 PATH，不依赖作者的 .
 VC++ 安装可能出现 Windows 管理员授权提示；若要求重启，请重启后再运行准备脚本。
 下载失败会显示错误，恢复联网后可重新运行；保留正常证书校验。
 以后直接打开 EXE。环境异常时重新运行环境准备脚本，已满足时不重复下载。
+也可双击“启动自动化前台.bat”，环境检查通过后自动打开 EXE。
+requirements.txt 只负责 Python 包；pip 不会安装 VC++、WebView2 或前台的 maafw/ 文件。
+前台的 Agent 固定使用 .runtime/python/python.exe；安装到系统 Python 或 .venv 无效。
+环境检查包含任务入口、框架/控制器/Agent DLL、资源加载以及 Worker 和 Agent 启动。
 
 请勿单独移动 EXE，勿在 ZIP 内直接运行。不要放在网络共享、只读目录或过深目录；
 建议解压路径小于 80 个字符。微信与游戏需自行准备登录。

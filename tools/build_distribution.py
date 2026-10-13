@@ -26,7 +26,7 @@ def build_package(root: Path, output: Path, version: str, *, scripts_only: bool 
         folders = ("agent", "resource") if scripts_only else ("agent", "resource", "maafw", "licenses")
         for folder in folders:
             shutil.copytree(root / folder, stage / folder, ignore=ignore)
-        for name in ("generate_interface.py", "requirements.txt", "使用前环境准备.bat"):
+        for name in ("generate_interface.py", "requirements.txt", "使用前环境准备.bat", "启动自动化前台.bat"):
             shutil.copy2(root / name, stage / name)
         if not scripts_only:
             shutil.copy2(root / "九霄小助手.exe", stage / "九霄小助手.exe")
