@@ -26,7 +26,7 @@ requirements.txt 只负责 Python 包；pip 不会安装 VC++、WebView2 或前�
 
 组件来源：
 - MXU 2.4.5：https://github.com/MistEO/MXU/tree/v2.4.5 （AGPL-3.0）
-- MaaFramework 5.12.3：https://github.com/MaaXYZ/MaaFramework/tree/v5.12.3
+- MaaFramework 5.14.3：https://github.com/MaaXYZ/MaaFramework/tree/v5.14.3
 - 许可证见 licenses/ 与 maafw/MaaAgentBinary/LICENSE，转发时保留。
 
 自动更新：

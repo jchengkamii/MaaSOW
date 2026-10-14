@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
-from agent.custom.action.march.state import MarchState as S, MarchTracker
+from agent.custom.action.march.state import MarchState as S, MarchTracker, parse_status
 from agent.custom.action.auto_pixiu import Pixiu
 from agent.custom.action.auto_ling_er import LingEr, RallyTracker
 
@@ -54,7 +54,12 @@ class MarchBasicTests(unittest.TestCase):
                 f.templates.assert_not_called()
 
     def test_ambiguous_submit_recovers_existing_handle_without_replay(self):
-        for kind,status in ((March,S.OUTBOUND),(Pixiu,S.OUTBOUND),(LingEr,S.ASSEMBLING)):
+        for text in ('L去X：598Y:380', '5去X:620Y：373', '5去X:620Y:373'):
+            self.assertEqual(S.OUTBOUND, parse_status(text))
+        for text in ('L去X：598', 'L00:01:30', '未知去X：598Y:380', '5去X:620', '55去X:620Y:373'):
+            self.assertIsNone(parse_status(text))
+        for kind,status in ((March,parse_status('L去X：598Y:380')),
+                            (Pixiu,parse_status('5去X:620Y:373')),(LingEr,S.ASSEMBLING)):
             with self.subTest(kind=kind):
                 f=self.flow(kind)
                 a=np.random.default_rng(98).random((24,24,3))
@@ -106,6 +111,13 @@ class MarchBasicTests(unittest.TestCase):
         f.ocr=Mock(side_effect=lambda crop,expected=None,only_rec=False:
                    [SimpleNamespace(text=status[0] if only_rec else '1/4')])
         self.assertTrue(f.snapshot()[0])
+        original_ocr = f.ocr
+        f.ocr = Mock(side_effect=[[SimpleNamespace(text='门去X:620')],
+                                 [SimpleNamespace(text='去X:620Y:373')]])
+        row, texts = f.read_squad_row(frame, 0, anchor.box)
+        self.assertEqual(S.OUTBOUND, row.status)
+        self.assertEqual(2, f.ocr.call_count)
+        f.ocr = original_ocr
         status[0]='战斗中'
         header.box=Rect(56,75,48,30)  # Header re-anchoring must not move a known row.
         valid,rows,count=f.snapshot()

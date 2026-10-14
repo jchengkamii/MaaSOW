@@ -421,6 +421,12 @@ class March(DispatchPanel):
         texts = [r.text for r in self.ocr(crop, only_rec=True)]
         status = next((s for s in map(parse_status, texts) if s is not None), None)
         if status is None:
+            # The left edge may include a map/icon fragment. Keep the complete
+            # coordinate line and retry without that edge before shortening.
+            inset = [r.text for r in self.ocr(crop[:, round(12 * scale):], only_rec=True)]
+            texts.extend(inset)
+            status = next((s for s in map(parse_status, inset) if s is not None), None)
+        if status is None:
             short = [r.text for r in self.ocr(crop[:, :round(80 * scale)], only_rec=True)]
             texts.extend(short)
             status = next((s for s in map(parse_status, short)

@@ -17,7 +17,7 @@ def main() -> None:
         requirement = requirement.partition("#")[0].strip()
         if requirement:
             name, expected = requirement.split("==")
-            assert metadata.version(name) == expected, f"{name} requires {expected}"
+            assert metadata.version(name).removeprefix("v") == expected, f"{name} requires {expected}"
     import maa
     import numpy
     import strenum
@@ -36,10 +36,17 @@ def main() -> None:
     from agent.recognition_fallback import apply_full_image_fallbacks
     from maa.resource import Resource
     from maa.toolkit import Toolkit
+    from maa.library import Library
+    expected_framework = metadata.version("MaaFw").removeprefix("v")
+    assert Library.version().removeprefix("v") == expected_framework, "Python framework DLL version mismatch"
     with __import__("os").add_dll_directory(str(ROOT / "maafw")):
         for name in ("MaaFramework.dll", "MaaToolkit.dll", "MaaWin32ControlUnit.dll",
                      "MaaAgentClient.dll", "MaaAgentServer.dll"):
             ctypes.WinDLL(str(ROOT / "maafw" / name))
+        frontend_framework = ctypes.WinDLL(str(ROOT / "maafw/MaaFramework.dll"))
+        frontend_framework.MaaVersion.restype = ctypes.c_char_p
+        frontend_framework.MaaVersion.argtypes = []
+        assert frontend_framework.MaaVersion().decode().removeprefix("v") == expected_framework, "Frontend framework DLL version mismatch"
     Toolkit.init_option(ROOT, {"logging": False, "save_draw": False, "save_on_error": False})
     resource = Resource()
     assert resource.post_bundle(ROOT / "resource/base").wait().succeeded, "Resource loading failed"
