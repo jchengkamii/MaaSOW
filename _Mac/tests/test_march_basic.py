@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-import re
 import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
 from agent.custom.action.march.state import MarchState as S, MarchTracker
@@ -93,19 +92,30 @@ class MarchBasicTests(unittest.TestCase):
         self.assertTrue(tracker.observe(**missing))
         self.assertEqual(S.COMPLETED,tracker.state)
 
-    def test_rally_search_accepts_both_mutually_exclusive_bosses(self):
-        for name in ('妖兽洞穴', '兽潮首领'):
-            f=LingEr.__new__(LingEr)
-            f.engine=Mock();f.level=8
-            f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
-            f.ocr=Mock(side_effect=[[SimpleNamespace(text=name)],[SimpleNamespace(text='8级')]])
-            self.assertEqual(8,f.search_level())
-            self.assertIsNotNone(re.fullmatch(f.target_title(),f'等级8 {name}'))
-            other='兽潮首领' if name=='妖兽洞穴' else '妖兽洞穴'
-            self.assertIsNone(re.fullmatch(f.target_title(),f'等级8 {other}'))
-            f.ocr.side_effect=[[SimpleNamespace(text=other)]]
-            with self.assertRaisesRegex(RuntimeError,'目标发生变化'):
-                f.search_level()
+    def test_rally_uses_level_controls_and_button_without_monster_name(self):
+        f=LingEr.__new__(LingEr);f.engine=Mock();f.level=8
+        f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
+        icon=SimpleNamespace(box=SimpleNamespace(x=12,y=24,w=50,h=50))
+        f.asset=Mock(return_value=[icon])
+        f.ocr=Mock(return_value=[SimpleNamespace(text='8级')])
+        self.assertEqual(8,f.search_level())
+        self.assertEqual(['minus','plus'],[c.args[1] for c in f.asset.call_args_list])
+        f.ocr.reset_mock()
+        self.assertIsNotNone(f.target_dispatch_point(f.screenshot()))
+        f.ocr.assert_not_called()
+        f.asset.return_value=[]
+        self.assertIsNone(f.target_dispatch_point(f.screenshot()))
+        with self.assertRaisesRegex(RuntimeError,'加减按钮'):
+            f.search_level()
+
+        f.icon_button=Mock(return_value=True)
+        f.region_text=Mock(side_effect=[False,False,True,True])
+        f.adjust_level=Mock();f.pause=Mock()
+        f.target_dispatch_point=Mock(return_value=(100,200))
+        f.locate(None)
+        f.icon_button.assert_called_once_with('search',(0,.70,.16,.84))
+        f.pause.assert_called_once_with(.3)
+        f.adjust_level.assert_called_once_with(8)
 
 
 if __name__ == '__main__':
