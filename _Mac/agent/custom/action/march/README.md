@@ -50,3 +50,5 @@ target 使用 Maa 归一化截图坐标。需要业务导航时可用
 目标任务提供 `target_dispatch_point(image)` 和 `target_tooltip_pattern`，以及
 `dispatch_caption`（出征或组队）；通用入口要求图标连续三帧稳定。
 识别失败的原始截图保存在 `debug/<任务名>_panel_failure.png`。
+
+状态行图标暂时漏检时，通用行军会按同尺寸截图中已确认的行位置重读状态。只有小队数量一致、每行头像匹配且状态文字可解析时才接受该结果；不会仅凭数量或集结后消失推断完成。

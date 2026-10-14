@@ -371,35 +371,61 @@ class March(DispatchPanel):
         complete = count is not None and len(anchors) == count
         if count is not None and not complete:
             self.snapshot_reason = f"小队占用数 {count} 与已识别状态行 {len(anchors)} 不符"
+        # During a short march the action icon can disappear or change artwork.
+        # Reuse only a previously confirmed layout with the same row count and
+        # screenshot size; every cached row still needs its original portrait
+        # and a readable status. Count alone never establishes a row or return.
+        cached_shape, cached_rows = getattr(self, '_snapshot_row_cache', (None, []))
+        if (count is not None and 0 < count <= 4 and not anchors
+                and cached_shape == image.shape[:2] and len(cached_rows) == count):
+            recovered = [self.read_squad_row(image, 0, box) for box, _ in cached_rows]
+            if all(row is not None and row.status is not None and similarity(row.avatar, old_avatar) >= .80
+                   for (row, _), (_, old_avatar) in zip(recovered, cached_rows)):
+                self.snapshot_rows_reliable = True
+                self.snapshot_status_texts = [texts for _, texts in recovered]
+                self.snapshot_reason = '状态图标漏检；已按原位置、头像和状态文字复核'
+                return True, [row for row, _ in recovered], count
+            if time.monotonic() >= getattr(self, '_next_row_recovery_log', 0):
+                scores = [round(similarity(row.avatar, old), 3) if row is not None else None
+                          for (row, _), (_, old) in zip(recovered, cached_rows)]
+                self.engine.log(f'状态行位置复核未通过：头像相似度={scores}，'
+                                f'状态原文={[texts for _, texts in recovered]}')
+                self._next_row_recovery_log = time.monotonic() + 10
         rows = []
-        scale = w / 690
         for anchor in anchors:
-            x, y = anchor.box.x, start + anchor.box.y
-            left, top, size = round(x - 197 * scale), round(y - 7 * scale), round(42 * scale)
-            if min(left, top) < 0:
+            row, texts = self.read_squad_row(image, start, anchor.box)
+            if row is None:
+                self.snapshot_reason = '小队状态行位置无效，等待下一帧'
                 return False, [], count or 0
-            avatar = portrait(image[top:top + size, left:left + size])
-            # Top 25 px contain status; the timer below is never OCR input.
-            status_crop = image[top - round(6 * scale):top + round(20 * scale),
-                                left + round(43 * scale):x - round(5 * scale)]
-            text = self.ocr(status_crop, only_rec=True)
-            raw_texts = [r.text for r in text]
-            statuses = [parse_status(r.text) for r in text]
-            status = next((s for s in statuses if s is not None), None)
-            if status is None:
-                # Long strips pick up map names behind the translucent row, e.g.
-                # 集结中·魂]掌门10. Fixed labels fit in the leftmost 80 pixels;
-                # retain the full strip above for outbound coordinates.
-                short = self.ocr(status_crop[:, :round(80 * scale)], only_rec=True)
-                raw_texts.extend(r.text for r in short)
-                fixed = [parse_status(r.text) for r in short]
-                status = next((s for s in fixed if s in (MarchState.ASSEMBLING, MarchState.FIGHTING,
-                                                         MarchState.RETURNING)), None)
-            self.snapshot_status_texts.append(raw_texts)
-            rows.append(SquadRow(avatar, status))
+            self.snapshot_status_texts.append(texts)
+            rows.append(row)
+        if complete:
+            self._snapshot_row_cache = (image.shape[:2],
+                                        [(Rect(anchor.box.x, start + anchor.box.y, anchor.box.w, anchor.box.h), row.avatar.copy())
+                                         for anchor, row in zip(anchors, rows)])
         # A collapsed list cannot provide the row anchors for a nonzero count.
         self.snapshot_rows_reliable = 0 < len(rows) <= 4
         return complete, rows, count if count is not None else len(rows)
+
+    def read_squad_row(self, image, start, box):
+        scale = image.shape[1] / 690
+        x, y = box.x, start + box.y
+        left, top, size = round(x - 197 * scale), round(y - 7 * scale), round(42 * scale)
+        if (left < 0 or top - round(6 * scale) < 0
+                or top + size > image.shape[0] or left + size > image.shape[1]):
+            return None, []
+        avatar = portrait(image[top:top + size, left:left + size])
+        # Timers below the status are never OCR input.
+        crop = image[top - round(6 * scale):top + round(20 * scale),
+                     left + round(43 * scale):x - round(5 * scale)]
+        texts = [r.text for r in self.ocr(crop, only_rec=True)]
+        status = next((s for s in map(parse_status, texts) if s is not None), None)
+        if status is None:
+            short = [r.text for r in self.ocr(crop[:, :round(80 * scale)], only_rec=True)]
+            texts.extend(short)
+            status = next((s for s in map(parse_status, short)
+                           if s in (MarchState.ASSEMBLING, MarchState.FIGHTING, MarchState.RETURNING)), None)
+        return SquadRow(avatar, status), texts
 
 
     def dispatch(self, target, queue=None, select_target=None, timeout=15):

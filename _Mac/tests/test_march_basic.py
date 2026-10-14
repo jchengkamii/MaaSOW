@@ -92,6 +92,28 @@ class MarchBasicTests(unittest.TestCase):
         self.assertTrue(tracker.observe(**missing))
         self.assertEqual(S.COMPLETED,tracker.state)
 
+        # Reproduce the logged 1/4 + missing icon transition. A known portrait
+        # and readable status may recover the row; a replaced portrait may not.
+        from maa.define import Rect
+        f=self.flow(March)
+        frame=np.random.default_rng(9).integers(0,256,(1300,720,3),dtype=np.uint8)
+        f.screenshot.return_value=frame
+        header=SimpleNamespace(box=Rect(56,60,48,30))
+        anchor=SimpleNamespace(box=Rect(225,14,31,31))
+        f.templates=Mock(return_value=[header])
+        f.row_anchors=Mock(side_effect=[[anchor],[],[]])
+        status=["集结中"]
+        f.ocr=Mock(side_effect=lambda crop,expected=None,only_rec=False:
+                   [SimpleNamespace(text=status[0] if only_rec else '1/4')])
+        self.assertTrue(f.snapshot()[0])
+        status[0]='战斗中'
+        header.box=Rect(56,75,48,30)  # Header re-anchoring must not move a known row.
+        valid,rows,count=f.snapshot()
+        self.assertTrue(valid);self.assertEqual(S.FIGHTING,rows[0].status)
+        self.assertEqual(1,count)
+        f.screenshot.return_value=np.random.default_rng(10).integers(0,256,frame.shape,dtype=np.uint8)
+        self.assertFalse(f.snapshot()[0])
+
     def test_rally_uses_level_controls_and_button_without_monster_name(self):
         f=LingEr.__new__(LingEr);f.engine=Mock();f.level=8
         f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
