@@ -143,6 +143,13 @@ class March(DispatchPanel):
         detail = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
                                JTemplateMatch(template=[f"Common/March/{name}.png"],
                                               threshold=[threshold], order_by="Vertical"))
+        if name == "bubble" and not detail.hit:
+            # Map terrain and marching arrows vary behind the bubble. Ignore
+            # that background while retaining the white shape and dark border.
+            detail = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
+                                   JTemplateMatch(template=["Common/March/bubble_masked.png"],
+                                                  threshold=[.85], green_mask=True,
+                                                  method=5, order_by="Vertical"))
         return detail.filtered_results if detail.hit else []
 
     def click(self, x, y):

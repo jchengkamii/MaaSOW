@@ -35,6 +35,24 @@ class MarchBasicTests(unittest.TestCase):
         f.record_panel_failure=Mock();f.target_dispatch_point=Mock(return_value=None)
         return f
 
+    def test_bubble_background_fallback_preserves_dispatch_guards(self):
+        f=self.flow(March)
+        hit=SimpleNamespace(box=SimpleNamespace(x=135,y=166,w=40,h=35))
+        f.recognize=Mock(side_effect=[SimpleNamespace(hit=False,filtered_results=[]),
+                                     SimpleNamespace(hit=True,filtered_results=[hit])])
+        self.assertEqual([hit], f.templates(f.screenshot(), 'bubble', .65))
+        params=f.recognize.call_args.args[2]
+        self.assertTrue(params.green_mask)
+        self.assertEqual(5, params.method)
+        self.assertEqual([.85], params.threshold)
+        f.ocr=Mock(return_value=[SimpleNamespace(text='出征')])
+        f.templates=Mock(return_value=[hit])
+        slots=[(False,(0,0),None)]*4
+        f.panel_at_bubble=Mock(return_value=(1,slots,[False]*4))
+        with self.assertRaisesRegex(RuntimeError,'队号校验通过 0'):
+            f.panel(f.screenshot())
+        f.click.assert_not_called()
+
     def test_transition_policy_is_shared_by_all_marches(self):
         for kind in (March,Pixiu,LingEr):
             with self.subTest(kind=kind):
