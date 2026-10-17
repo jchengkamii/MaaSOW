@@ -12,6 +12,12 @@ ROOT = Path(__file__).resolve().parent
 
 def validate_background_config(root=ROOT):
     root = Path(root)
+    requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+    expected = next(line.partition("==")[2].partition("#")[0].strip()
+                    for line in requirements.splitlines() if line.strip().startswith("MaaFw=="))
+    manifest = json.loads((root / "vendor/manifest.json").read_text(encoding="utf-8"))
+    if manifest["maafw_version"].removeprefix("v") != expected.removeprefix("v"):
+        raise RuntimeError("脚本与 Mac 运行库版本不匹配，请解压新版完整包并重新运行环境准备；框架升级不能只覆盖脚本。")
     interface = json.loads((root / "interface.json").read_text(encoding="utf-8"))
     controllers = interface.get("controller", [])
     if not controllers or any(c.get("type") != "MacOS" or c.get("macos", {}).get("input") != "PostToPid" for c in controllers):

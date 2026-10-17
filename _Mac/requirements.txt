@@ -1,5 +1,5 @@
 # Python 3.12 macOS (Apple Silicon / Intel). Run 使用前环境准备.command.
-MaaFw==5.12.3
+MaaFw==5.14.3
 MaaAgentBinary==1.0.1
 numpy==2.5.3
 StrEnum==0.4.15

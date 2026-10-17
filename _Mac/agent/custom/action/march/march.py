@@ -143,6 +143,13 @@ class March(DispatchPanel):
         detail = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
                                JTemplateMatch(template=[f"Common/March/{name}.png"],
                                               threshold=[threshold], order_by="Vertical"))
+        if name == "bubble" and not detail.hit:
+            # Map terrain and marching arrows vary behind the bubble. Ignore
+            # that background while retaining the white shape and dark border.
+            detail = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
+                                   JTemplateMatch(template=["Common/March/bubble_masked.png"],
+                                                  threshold=[.85], green_mask=True,
+                                                  method=5, order_by="Vertical"))
         return detail.filtered_results if detail.hit else []
 
     def click(self, x, y):
@@ -421,6 +428,12 @@ class March(DispatchPanel):
         texts = [r.text for r in self.ocr(crop, only_rec=True)]
         status = next((s for s in map(parse_status, texts) if s is not None), None)
         if status is None:
+            # The left edge may include a map/icon fragment. Keep the complete
+            # coordinate line and retry without that edge before shortening.
+            inset = [r.text for r in self.ocr(crop[:, round(12 * scale):], only_rec=True)]
+            texts.extend(inset)
+            status = next((s for s in map(parse_status, inset) if s is not None), None)
+        if status is None:
             short = [r.text for r in self.ocr(crop[:, :round(80 * scale)], only_rec=True)]
             texts.extend(short)
             status = next((s for s in map(parse_status, short)
@@ -537,6 +550,9 @@ class March(DispatchPanel):
                                 f"状态={[row.status for row in rows]}，新增确认帧={added_confirmations}")
                 next_diagnostic = time.monotonic() + 3
             self.pause(.3)
+        self.engine.log(f"出征确认失败现场：队列={desired}，小队识别原因={getattr(self, 'snapshot_reason', '')}，"
+                        f"状态原文={getattr(self, 'snapshot_status_texts', [])}")
+        self.record_panel_failure(self.screenshot())
         raise TimeoutError("已点击出征，但未确认对应小队；不会重复点击出征")
 
     def poll(self, handle):

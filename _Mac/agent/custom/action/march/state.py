@@ -22,7 +22,9 @@ def parse_status(text: str) -> MarchState | None:
                 "返回": MarchState.RETURNING, "出征": MarchState.OUTBOUND}[label[1]]
     # Coordinates remain a strong outbound marker even when OCR merges a short
     # map label at the end or reads the colon as a dot/comma.
-    if re.fullmatch(r"去[Xx][：:.,，。·]?-?\d+[Yy][：:.,，。·]?-?\d+[^\d\s:：]{0,3}", text):
+    # The HUD arrow can be recognized as one leading Latin letter or digit.
+    # Keep both complete coordinates mandatory; never accept a timer alone.
+    if re.fullmatch(r"[A-Za-zＡ-Ｚａ-ｚ0-9０-９]?去[Xx][：:.,，。·]?-?\d+[Yy][：:.,，。·]?-?\d+[^\d\s:：]{0,3}", text):
         return MarchState.OUTBOUND
     return None
 

@@ -1,6 +1,6 @@
 {
   "mxu_version": "2.6.1",
-  "maafw_version": "5.12.3",
+  "maafw_version": "5.14.3",
   "assets": [
     {
       "name": "MXU-macos-aarch64-v2.6.1.tar.gz",
@@ -15,16 +15,16 @@
       "size": 12305125
     },
     {
-      "name": "MAA-macos-aarch64-v5.12.3.zip",
-      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.12.3/MAA-macos-aarch64-v5.12.3.zip",
-      "sha256": "5fe3881ecfaac4a5934fddccc82a71845c6dccc2a75bc1329e0df827ae5ba91c",
-      "size": 24889692
+      "name": "MAA-macos-aarch64-v5.14.3.zip",
+      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.14.3/MAA-macos-aarch64-v5.14.3.zip",
+      "sha256": "c588d3d22be1e53d0991e50bc7277c9034501fd0bac0f26d185e89d667d24033",
+      "size": 27426681
     },
     {
-      "name": "MAA-macos-x86_64-v5.12.3.zip",
-      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.12.3/MAA-macos-x86_64-v5.12.3.zip",
-      "sha256": "c8761efcd811d07e9ea979c22b6bc45dac7dd23e1beb760d79e14eacd333fd51",
-      "size": 27120430
+      "name": "MAA-macos-x86_64-v5.14.3.zip",
+      "url": "https://github.com/MaaXYZ/MaaFramework/releases/download/v5.14.3/MAA-macos-x86_64-v5.14.3.zip",
+      "sha256": "490ba6b222fa260d8948e856665f691a428de1d217b521567f4531b0f1662708",
+      "size": 29759551
     }
   ]
 }

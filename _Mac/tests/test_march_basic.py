@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
-from agent.custom.action.march.state import MarchState as S, MarchTracker
+from agent.custom.action.march.state import MarchState as S, MarchTracker, parse_status
 from agent.custom.action.auto_pixiu import Pixiu
 from agent.custom.action.auto_ling_er import LingEr, RallyTracker
 
@@ -35,6 +35,24 @@ class MarchBasicTests(unittest.TestCase):
         f.record_panel_failure=Mock();f.target_dispatch_point=Mock(return_value=None)
         return f
 
+    def test_bubble_background_fallback_preserves_dispatch_guards(self):
+        f=self.flow(March)
+        hit=SimpleNamespace(box=SimpleNamespace(x=135,y=166,w=40,h=35))
+        f.recognize=Mock(side_effect=[SimpleNamespace(hit=False,filtered_results=[]),
+                                     SimpleNamespace(hit=True,filtered_results=[hit])])
+        self.assertEqual([hit], f.templates(f.screenshot(), 'bubble', .65))
+        params=f.recognize.call_args.args[2]
+        self.assertTrue(params.green_mask)
+        self.assertEqual(5, params.method)
+        self.assertEqual([.85], params.threshold)
+        f.ocr=Mock(return_value=[SimpleNamespace(text='出征')])
+        f.templates=Mock(return_value=[hit])
+        slots=[(False,(0,0),None)]*4
+        f.panel_at_bubble=Mock(return_value=(1,slots,[False]*4))
+        with self.assertRaisesRegex(RuntimeError,'队号校验通过 0'):
+            f.panel(f.screenshot())
+        f.click.assert_not_called()
+
     def test_transition_policy_is_shared_by_all_marches(self):
         for kind in (March,Pixiu,LingEr):
             with self.subTest(kind=kind):
@@ -54,7 +72,12 @@ class MarchBasicTests(unittest.TestCase):
                 f.templates.assert_not_called()
 
     def test_ambiguous_submit_recovers_existing_handle_without_replay(self):
-        for kind,status in ((March,S.OUTBOUND),(Pixiu,S.OUTBOUND),(LingEr,S.ASSEMBLING)):
+        for text in ('L去X：598Y:380', '5去X:620Y：373', '5去X:620Y:373'):
+            self.assertEqual(S.OUTBOUND, parse_status(text))
+        for text in ('L去X：598', 'L00:01:30', '未知去X：598Y:380', '5去X:620', '55去X:620Y:373'):
+            self.assertIsNone(parse_status(text))
+        for kind,status in ((March,parse_status('L去X：598Y:380')),
+                            (Pixiu,parse_status('5去X:620Y:373')),(LingEr,S.ASSEMBLING)):
             with self.subTest(kind=kind):
                 f=self.flow(kind)
                 a=np.random.default_rng(98).random((24,24,3))
@@ -106,6 +129,13 @@ class MarchBasicTests(unittest.TestCase):
         f.ocr=Mock(side_effect=lambda crop,expected=None,only_rec=False:
                    [SimpleNamespace(text=status[0] if only_rec else '1/4')])
         self.assertTrue(f.snapshot()[0])
+        original_ocr = f.ocr
+        f.ocr = Mock(side_effect=[[SimpleNamespace(text='门去X:620')],
+                                 [SimpleNamespace(text='去X:620Y:373')]])
+        row, texts = f.read_squad_row(frame, 0, anchor.box)
+        self.assertEqual(S.OUTBOUND, row.status)
+        self.assertEqual(2, f.ocr.call_count)
+        f.ocr = original_ocr
         status[0]='战斗中'
         header.box=Rect(56,75,48,30)  # Header re-anchoring must not move a known row.
         valid,rows,count=f.snapshot()

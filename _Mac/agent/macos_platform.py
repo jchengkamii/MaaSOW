@@ -1,4 +1,4 @@
-"""Native macOS window discovery and permission checks (MaaFramework 5.12.3)."""
+"""Native macOS window discovery and permission checks (MaaFramework 5.14.3)."""
 from __future__ import annotations
 import json
 import re

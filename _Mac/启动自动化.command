@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-unset PYTHONHOME PYTHONPATH
+unset PYTHONHOME PYTHONPATH MAAFW_BINARY_PATH
 export PYTHONUTF8=1 PYTHONNOUSERSITE=1
 cd "$(dirname "$0")"
 if [ ! -x .venv/bin/python3 ]; then

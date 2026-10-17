@@ -34,3 +34,5 @@ Mac 更新器只接受 `MaaSOW-scripts-macos-universal-v<版本>.zip`，不会�
 首次自动更新需要先安装定制前端；后续纯脚本更新不包含前端及框架库。Python 依赖变化后需要重新运行环境准备。
 
 更新源：https://github.com/jchengkamii/MaaSOW 。MXU 上游：https://github.com/MistEO/MXU/tree/115fcb39d75718f8bd53e76511322660b8af00ec 。遵循 AGPL-3.0，定制源码与构建方法随本包分发。
+
+打包默认与 Windows 一样读取 origin 的最新稳定版本标签；离线构建可用 `--version 1.1.123` 显式指定。完整包包含 MaaFramework 5.14.3；从旧 Mac 安装目录升级时需使用完整包并重新运行环境准备脚本。

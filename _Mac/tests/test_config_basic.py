@@ -8,6 +8,19 @@ from generate_interface import generate
 
 
 class ConfigurationBasicTests(unittest.TestCase):
+    def test_package_version_follows_stable_git_tags(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.build_distribution import resolve_version
+        tags = ("a refs/tags/v1.1.9\n"
+                "b refs/tags/v1.1.12\n"
+                "c refs/tags/v1.1.13-beta.1\n"
+                "d refs/tags/v1.1.12^{}\n")
+        with patch("tools.build_distribution.subprocess.run",
+                   return_value=SimpleNamespace(stdout=tags)):
+            self.assertEqual("1.1.12", resolve_version())
+        self.assertEqual("1.1.12", resolve_version("v1.1.12"))
+
     def test_tasks_load_and_python_entries_exist(self):
         cases=CaseLoader().load()
         self.assertTrue(cases)

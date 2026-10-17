@@ -32,7 +32,7 @@ def check_environment(imports_only=False):
         requirement = requirement.partition("#")[0].strip()
         if requirement:
             name, expected = requirement.split("==")
-            if metadata.version(name) != expected:
+            if metadata.version(name).removeprefix("v") != expected.removeprefix("v"):
                 raise RuntimeError(f"{name} 需要版本 {expected}")
     for name in ("maa", "numpy", "strenum", "PIL", "psutil"):
         module = importlib.import_module(name)

@@ -11,6 +11,19 @@ class MacBasicTests(unittest.TestCase):
         self.assertEqual('aarch64',installer.architecture('arm64'))
         self.assertEqual('x86_64',installer.architecture('x86_64'))
 
+    def test_runtime_version_mismatch_blocks_launch(self):
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from launcher import validate_background_config
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "vendor").mkdir()
+            (root / "requirements.txt").write_text("MaaFw==5.14.3\n", encoding="utf-8")
+            (root / "vendor/manifest.json").write_text(json.dumps({"maafw_version": "5.12.3"}), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "完整包"):
+                validate_background_config(root)
+
     def test_controller_uses_native_window_id(self):
         controller=MagicMock()
         with patch.object(mac,'require_permissions'), patch.object(mac,'MacOSController',return_value=controller) as factory:

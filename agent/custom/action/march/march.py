@@ -550,6 +550,9 @@ class March(DispatchPanel):
                                 f"状态={[row.status for row in rows]}，新增确认帧={added_confirmations}")
                 next_diagnostic = time.monotonic() + 3
             self.pause(.3)
+        self.engine.log(f"出征确认失败现场：队列={desired}，小队识别原因={getattr(self, 'snapshot_reason', '')}，"
+                        f"状态原文={getattr(self, 'snapshot_status_texts', [])}")
+        self.record_panel_failure(self.screenshot())
         raise TimeoutError("已点击出征，但未确认对应小队；不会重复点击出征")
 
     def poll(self, handle):

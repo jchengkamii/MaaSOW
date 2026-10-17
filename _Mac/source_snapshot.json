@@ -1,12 +1,15 @@
 {
-  "source_commit": "0fa967d3515454f64e38f0c10f774c8066a4cd26",
+  "source_commit": "77ae5d10fa37c45a5a0b397c3b588ee25c207da3",
+  "source_worktree_changes": [
+    "agent/custom/action/march/march.py"
+  ],
   "shared_sha256": {
     "agent/main.py": "577ff3d883cc368f2fc9dff096eaf5fc949f873311c1cb4d121c538531849561",
     "agent/recognition_fallback.py": "28f39f8715a00b5275ec6ba88a02290a1328e5069ba3ed476f2d018276cfa0fd",
     "agent/worker.py": "e5561bb7efd8f94233237d44d95c75eccf4ca20dea565ab0446686f24a74a828",
     "agent/__init__.py": "a97711a54108cda109e9044688b1369dd997707f2d0c0720f0b79c8b3292a2d4",
     "agent/custom/__init__.py": "50450906ea98e1c4e123618026eb5cf0ecfc9f6814457bdc580d261e45e62818",
-    "agent/custom/action/auto_ling_er.py": "17570afa352a20a76ee038c59880b88237cf4e423535da6baa7e8e8ca60da8ad",
+    "agent/custom/action/auto_ling_er.py": "542958bd327e3ca69356cef01a40f61b9a9139d92b2b39e949fe8f1555ea06c7",
     "agent/custom/action/auto_pixiu.py": "059b0f5a07449b1206ffed82760deb18828b65303d6eed0abe9066f8ad75a542",
     "agent/custom/action/README.md": "0f553e357c40feb58feb9a786d269329bef7128338ece31423de3b695287c31f",
     "agent/custom/action/run_configured_case.py": "367bbc899ff9006d84100e5667c6b4e4359b4fd31b94cc3cae68e627e8321566",
@@ -17,21 +20,21 @@
     "agent/custom/action/auto_treatment/auto_treatment_cycle.py": "8bcae73964b375eebb7bed1386c4aa063a0868255c3b65b72e3b94369dd983e4",
     "agent/custom/action/auto_treatment/__init__.py": "af81c5d8d26c9fce291e683315f972883889cc8eed8bbef89c3597b8676ff988",
     "agent/custom/action/march/dispatch_panel.py": "eaa6cb5b13a3a180cb0af94e742072e259d7d3a8257d516b7152ddb34471a6d9",
-    "agent/custom/action/march/march.py": "c4006fa3c7cbdc6e943e6da5a1753eeec9be2424daf4be7efb3e30e4e3b3803a",
-    "agent/custom/action/march/README.md": "d492e08113213bd99a6be629558c933dab7877e87e29303fcd6b9519329e3c39",
-    "agent/custom/action/march/state.py": "384be7e6e18521b5f6de8888efda3cf3e9a5445b4c035613aec45751aa8ad4b7",
+    "agent/custom/action/march/march.py": "d23a77cb46a6027d852da095528ef3289f7d8edba56676615c4071265ac87d85",
+    "agent/custom/action/march/README.md": "6020e6a2749b08a363e26c1c7e4225682ddafee5b56c6beafe54b39e4cd52006",
+    "agent/custom/action/march/state.py": "ae0cd1d7cf9897168202bc957832decf2e799cbf02d58684713ca0f4c3a130c9",
     "agent/custom/action/march/__init__.py": "6fabab970a6c98db51d94750bbbcd687983bfbb2fd8c61128897b41ea0ca5c6e",
     "agent/custom/action/stop_auto_help/stop_auto_help.py": "fb2642a1945850fa4107c02c093e4f8aa6ee834bb2dec77d0e59c28ca906388f",
     "agent/custom/action/stop_auto_help/__init__.py": "b288ce945958f87b4dfa0ced0e93ccf79a5dc98848ddf2aad95efc855a8f1a1d",
     "resource/app_icon.ico": "e90a807f55e50a8af99319a51a6804c6cd39edd98a7100359dedc3250cd52ef7",
     "resource/app_icon.png": "c8b8123b3f27f406502f189568bc1dbc7f8a351058a35d7fe296d5288febe5e2",
     "resource/tasks/auto_help.json": "3d0fd75fd11e9c677d5b2132ebfa5cd37dc2ac2fa83f1b73ce06f0892275253b",
-    "resource/tasks/auto_ling_er.json": "baf781c3bc38fad01acc1e3589116847fda3887042540fb8b458d6e31cd81bbe",
+    "resource/tasks/auto_ling_er.json": "15d1af7c835a9e9cd3ff6fd52e6c9c26c4e845cc5d113741d40d82c5306e482c",
     "resource/tasks/auto_pixiu.json": "34e0535a11cea55353fecad4dcecdcd59ddefa1385f82103e002007c54f5cb73",
     "resource/tasks/auto_radar.json": "0f3a62169942fa75f526c5b47fa1a9a54019203ca95b25ee3474d16d9038fafc",
     "resource/tasks/auto_treatment.json": "77db713603e83a6caf3870cc8359bfe1fc37e8a5ca68b6ff3b326c187c11da6a",
     "resource/tasks/close_face_popups.json": "27a1119b1e031cbc58f1a8e5e7ada47be52c2cc1eb5985cd46266f708cf0c989",
-    "resource/tasks/README.md": "7fc0dc83ba3cace2a2861e4f1c42fba66cc6629765431b844d1d1c124e6d7416",
+    "resource/tasks/README.md": "541ab712882fdb2434ee5fcc4193f6c21287c89ae5be2c7beffc32b094402d0f",
     "resource/tasks/stop_auto_help.json": "19ab83cdbf652808729a7fef85c8d59554afd880224a6c855ab2597ac188e14b",
     "resource/base/image/AutoHelp/auto_help_button.png": "c5bfa515462b2d1e03cd2dfb90483f58966941411326794fd081dac5f8e68f2b",
     "resource/base/image/AutoLingEr/assembling.png": "65168747a42b2cf744e09144239f00d77d84de2021ebf28a0431b9111c772296",
@@ -91,6 +94,7 @@
     "resource/base/image/Common/AutoStamina/use_enabled.png": "d8ef1976b34ace8c856fa525d3c951ece36ea7c0c5701599e26b9e1494c39bc7",
     "resource/base/image/Common/March/attack.png": "af4a31a50b609240b6bccb0465da9bf929e91f1d5ee3208591b52ce69550eafb",
     "resource/base/image/Common/March/bubble.png": "a0916bc3b904ccb3194b6d5b3bc208042e76c36e01f1eb4fba74ceb1a2d8b526",
+    "resource/base/image/Common/March/bubble_masked.png": "2b339d5e8244b26892185915d4bf6c3b418829da99b0cd134e07c5de1c2b140e",
     "resource/base/image/Common/March/header.png": "7ff5670fa21cdb037c373b5a7e7e0bb9b1a9b7fc4918a2628060ad4dd79776fa",
     "resource/base/image/Common/March/locked.png": "dca47888bbfab1d79cf2c0f692ec37f85966da1ef0b508cb9ae3b302dfb11670",
     "resource/base/image/Common/March/monthly.png": "b8bf348e0ca4e4af2405e25f24e31e4d3f702968797cf108d57d910efcd70049",
@@ -123,8 +127,8 @@
     "resource/base/pipeline/Common/March.json": "4c787ee7eca091d85755d42bf02c8b3719285426b9990a236b06689ced56d76b",
     "resource/base/pipeline/Interface/RunConfiguredCase.json": "d5c64012fe72e1ccbf4f7184837c670087aa85b02d063a88d05749587f837832",
     "resource/base/pipeline/Common/Scene/InnerCity.json": "23460d6a94ccbae7e5642b0e46f32bb26a1baaae3313331b504918415f717a9a",
-    "tests/test_config_basic.py": "c63d6916ef4e823834940f59a560f9d4600635871e68068e8309161d4ee4faf0",
-    "tests/test_march_basic.py": "6521525b7efc0a1a5eb1e508df53e977c6910def0b46aa3e37e68896f5179108",
+    "tests/test_config_basic.py": "39ab9084f4b2e7a5c82548db9c65068e2fad031d332c0b6a3bf4d585005b6d4e",
+    "tests/test_march_basic.py": "0ddc8702655dd33608f52e158246b9765b1bae3f5c2124e4afed6bd25d396f46",
     "licenses/MaaFramework-LICENSE.md": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
     "licenses/MXU-LICENSE.txt": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
     "AGENTS.md": "b6ea8bd68783bf5062b3c6961a6cc1a04eeeb748b8a154b32ca81b07afbcb9ee",
@@ -142,6 +146,10 @@
   "adapted_updater_files": [
     "tools/prepare_mxu.py",
     "tools/mxu/mainRelease.ts",
-    "tools/mxu/mainRelease.test.mjs"
-  ]
+    "tools/mxu/mainRelease.test.mjs",
+    "tools/build_distribution.py",
+    "tools/package_macos.py"
+  ],
+  "maafw_version": "5.14.3",
+  "package_version": "1.1.16"
 }

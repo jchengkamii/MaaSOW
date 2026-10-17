@@ -7,7 +7,7 @@ import shutil
 import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tools.build_distribution import build_package
+from tools.build_distribution import build_package, resolve_version
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--version")
     parser.add_argument("--scripts-only", action="store_true")
     args = parser.parse_args()
-    version = args.version or json.loads((ROOT / "interface.json").read_text(encoding="utf-8"))["version"]
+    version = resolve_version(args.version)
     archive = build_package(ROOT, ROOT / "dist", version, scripts_only=args.scripts_only)
     if not args.scripts_only:
         alias = ROOT / "dist/MaaSOW-macOS.zip"

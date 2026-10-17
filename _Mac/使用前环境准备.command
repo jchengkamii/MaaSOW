@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-unset PYTHONHOME PYTHONPATH
+unset PYTHONHOME PYTHONPATH MAAFW_BINARY_PATH
 export PYTHONUTF8=1 PYTHONNOUSERSITE=1
 cd "$(dirname "$0")"
 trap 'status=$?; if [ "$status" -ne 0 ]; then echo "环境准备失败，请查看上方错误。"; fi; read -r -p "按回车关闭窗口…" || true' EXIT

@@ -1,6 +1,6 @@
 # 九霄小助手 · MXU macOS
 
-Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务、参数与实时截图界面。框架固定为 MaaFramework 5.12.3。要求 macOS 14+、Python 3.12；支持 Apple Silicon 和 Intel，不需要 Tk。
+Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务、参数与实时截图界面。框架固定为 MaaFramework 5.14.3。要求 macOS 14+、Python 3.12；支持 Apple Silicon 和 Intel，不需要 Tk。
 
 ## 安装与启动
 
@@ -45,8 +45,8 @@ Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务�
 
 官方来源及许可证：
 - MXU 2.6.1：<https://github.com/MistEO/MXU/releases/tag/v2.6.1>，AGPL-3.0。
-- MaaFramework 5.12.3：<https://github.com/MaaXYZ/MaaFramework/releases/tag/v5.12.3>，LGPL-3.0。
-- PostToPid 实现：<https://github.com/MaaXYZ/MaaFramework/blob/v5.12.3/source/MaaMacOSControlUnit/Input/PostToPidInput.mm>。
+- MaaFramework 5.14.3：<https://github.com/MaaXYZ/MaaFramework/releases/tag/v5.14.3>，LGPL-3.0。
+- PostToPid 实现：<https://github.com/MaaXYZ/MaaFramework/blob/v5.14.3/source/MaaMacOSControlUnit/Input/PostToPidInput.mm>。
 - 官方控制方式说明：<https://github.com/MaaXYZ/MaaFramework/blob/main/docs/en_us/2.4-ControlMethods.md>。
 
 `vendor/manifest.json` 记录下载地址及官方摘要；原版许可随归档保留，安装时解压至 `licenses/`。
@@ -61,3 +61,7 @@ Mac 版使用官方 **MXU 2.6.1** 前端，与 Windows 版采用相同的任务�
 环境准备脚本先核对本地 Python 依赖版本与安装位置，并实际测试 Pillow 保存 PNG；依赖缺失或损坏时强制重装。脚本清除外部 PYTHONHOME/PYTHONPATH，避免误用其他工程的 Python 包。
 
 准备完成前检查 Mac 原生运行库、资源、任务入口、Worker 和 Agent，检查过程不连接或操作游戏。可单独执行 `.venv/bin/python3 tools/diagnose.py --environment-only`；普通 `检查环境.command` 继续提供权限、窗口与截图诊断。
+
+## 2026-10-17 框架升级
+
+本次与 Windows 同步升级至 MaaFramework 5.14.3，包含最新行军气泡识别与出征失败现场记录。请使用完整包解压到新的可写目录，运行“使用前环境准备.command”，再启动 MXU。仅覆盖脚本不能将旧版原生库升级到 5.14.3，启动时会检查并拒绝版本不一致。
