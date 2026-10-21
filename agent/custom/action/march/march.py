@@ -514,16 +514,30 @@ class March(DispatchPanel):
         deadline = time.monotonic() + timeout
         previous_added = None
         added_confirmations = 0
+        previous_portrait = None
+        portrait_confirmations = 0
         next_diagnostic = 0
         while time.monotonic() < deadline:
             valid, rows, count = self.snapshot()
             scores = [similarity(row.avatar, selected_avatar) for row in rows]
-            matches = [row for row, score in zip(rows, scores) if score >= .65]
+            candidate = self.matching_dispatch_row(valid, rows, selected_avatar)
             confirmed = None
             method = "头像唯一匹配"
-            if valid and len(matches) == 1 and matches[0].status in self.dispatch_states:
-                confirmed = matches[0]
+            if candidate is not None:
+                if valid:
+                    confirmed = candidate
+                else:
+                    portrait_confirmations = (portrait_confirmations + 1
+                        if previous_portrait is not None
+                        and similarity(previous_portrait.avatar, candidate.avatar) >= .85 else 1)
+                    previous_portrait = candidate
+                    if portrait_confirmations >= 3:
+                        confirmed = candidate
+                        method = '数量栏不可靠；头像与正确状态连续三帧确认'
             else:
+                previous_portrait = None
+                portrait_confirmations = 0
+            if confirmed is None:
                 added = new_dispatched_row(existing, rows, count) if valid and baseline_known else None
                 if added is not None and added.status not in self.dispatch_states:
                     added = None
@@ -539,7 +553,7 @@ class March(DispatchPanel):
                         method = "旧队伍匹配（允许已知返回队伍消失）且唯一新增行军队伍，连续三帧确认"
             if confirmed is not None:
                 handle.avatar = confirmed.avatar
-                handle.last_count = count
+                handle.last_count = count if valid else len(rows)
                 handle.tracker.observe(visible=True, status=confirmed.status, reliable=True)
                 self.engine.log(f"第 {desired} 队已出征：{handle.tracker.state}；确认方式：{method}")
                 return handle
@@ -547,7 +561,7 @@ class March(DispatchPanel):
                 self.engine.log(f"第 {desired} 队出征确认中：列表可靠={valid}，占用={count}，"
                                 f"出征前基线可靠={baseline_known}，原队伍数={len(existing)}，"
                                 f"头像相似度={[round(score, 3) for score in scores]}，"
-                                f"状态={[row.status for row in rows]}，新增确认帧={added_confirmations}")
+                                f"状态={[row.status for row in rows]}，新增确认帧={added_confirmations}，头像确认帧={portrait_confirmations}")
                 next_diagnostic = time.monotonic() + 3
             self.pause(.3)
         self.engine.log(f"出征确认失败现场：队列={desired}，小队识别原因={getattr(self, 'snapshot_reason', '')}，"

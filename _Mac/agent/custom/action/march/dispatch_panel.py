@@ -161,6 +161,18 @@ class DispatchPanel:
         self.record_panel_failure(self.screenshot())
         raise RuntimeError('恢复失败：未能连续确认无出征弹窗的大世界默认态')
 
+    def matching_dispatch_row(self, valid, rows, avatar):
+        """Positive dispatch evidence; never proves absence or completion."""
+        from .march import similarity
+        matches = [(row, similarity(row.avatar, avatar)) for row in rows]
+        matches = [(row, score) for row, score in matches if score >= .65]
+        if len(matches) != 1 or matches[0][0].status not in self.dispatch_states:
+            return None
+        row, score = matches[0]
+        if valid or (getattr(self, 'snapshot_rows_reliable', False) is True and score >= .80):
+            return row
+        return None
+
     def reconcile_pending_dispatch(self):
         from .march import similarity, new_dispatched_row
         if getattr(self, 'pending_dispatch', False) is not True:
@@ -170,15 +182,11 @@ class DispatchPanel:
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             valid, rows, count = self.snapshot()
-            candidate = None
-            if valid:
-                matches = [row for row in rows if similarity(row.avatar, self.pending_avatar) >= .65]
-                if len(matches) == 1 and matches[0].status in self.dispatch_states:
-                    candidate = matches[0]
-                elif self.pending_baseline_reliable:
-                    candidate = new_dispatched_row(self.pending_rows, rows, count)
-                    if candidate is not None and candidate.status not in self.dispatch_states:
-                        candidate = None
+            candidate = self.matching_dispatch_row(valid, rows, self.pending_avatar)
+            if candidate is None and valid and self.pending_baseline_reliable:
+                candidate = new_dispatched_row(self.pending_rows, rows, count)
+                if candidate is not None and candidate.status not in self.dispatch_states:
+                    candidate = None
             if candidate is None:
                 confirmations, previous = 0, None
             else:
@@ -189,7 +197,7 @@ class DispatchPanel:
                     handle = getattr(self, 'pending_handle', None)
                     if handle is not None:
                         handle.avatar = candidate.avatar
-                        handle.last_count = count
+                        handle.last_count = count if valid else len(rows)
                         handle.tracker.observe(visible=True, status=candidate.status, reliable=True)
                     self.engine.log('恢复后连续三帧确认已出征，继续跟踪对应队伍')
                     return True

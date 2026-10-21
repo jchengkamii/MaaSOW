@@ -95,6 +95,33 @@ class MarchBasicTests(unittest.TestCase):
                 f._submit_from_panel.assert_called_once();f.recover_world.assert_called_once()
                 self.assertEqual(3,f.snapshot.call_count)
 
+        # Count OCR can fail while the known portrait and status remain clear.
+        for kind,status in ((March,S.OUTBOUND),(Pixiu,S.OUTBOUND),(LingEr,S.ASSEMBLING)):
+            f=self.flow(kind)
+            a=np.random.default_rng(101).random((24,24,3))
+            row=SquadRow(a,status)
+            f.snapshot_rows_reliable=True
+            f.snapshot=Mock(return_value=(False,[row],1))
+            f.panel=Mock(return_value=(1,[(True,(0,0),a)]))
+            f.panel_busy=[False];f.zero_disciples=Mock(return_value=False)
+            f.text_button=Mock(return_value=True)
+            handle=f._submit_from_panel(queue=1,existing=[])
+            self.assertEqual(status,handle.tracker.state)
+            self.assertEqual(3,f.snapshot.call_count)
+            self.assertEqual(1,sum(c.args[0]=='出征' for c in f.text_button.call_args_list))
+            with patch('agent.custom.action.march.march.similarity',return_value=.75):
+                self.assertIsNone(f.matching_dispatch_row(False,[row],a))
+            self.assertIsNone(f.matching_dispatch_row(False,[row,row],a))
+            self.assertIsNone(f.matching_dispatch_row(False,[SquadRow(a,S.RETURNING)],a))
+            f.snapshot_rows_reliable=False
+            self.assertIsNone(f.matching_dispatch_row(False,[row],a))
+            f.snapshot_rows_reliable=True
+            f.pending_avatar=a;f.pending_rows=[];f.pending_baseline_reliable=True
+            f.pending_dispatch=True;f.pending_handle=handle
+            f.snapshot.reset_mock()
+            self.assertTrue(f.reconcile_pending_dispatch())
+            self.assertEqual(3,f.snapshot.call_count)
+
     def test_only_selected_idle_queue_is_dispatched(self):
         f=self.flow(Pixiu)
         avatars=np.random.default_rng(42).random((4,24,24,3))
