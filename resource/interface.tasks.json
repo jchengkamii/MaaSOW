@@ -214,6 +214,46 @@
         "玲儿集结设置",
         "玲儿集结队列"
       ]
+    },
+    {
+      "name": "auto_fu_hu",
+      "label": "自动伏虎镇伥",
+      "entry": "MXU执行外部用例",
+      "default_check": true,
+      "description": "运行前需要先手动选择个人难度，通过左下角hud进行定位和进攻。",
+      "group": [
+        "group_02"
+      ],
+      "controller": [
+        "WeChatOrGame"
+      ],
+      "resource": [
+        "Default"
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_fu_hu"
+          }
+        },
+        "伏虎出征队列1": {
+          "enabled": false
+        },
+        "伏虎出征队列2": {
+          "enabled": false
+        },
+        "伏虎出征队列3": {
+          "enabled": false
+        },
+        "伏虎出征队列4": {
+          "enabled": false
+        }
+      },
+      "option": [
+        "自动补体",
+        "伏虎降妖次数",
+        "伏虎出征队列"
+      ]
     }
   ],
   "option": {
@@ -403,6 +443,75 @@
           "label": "4",
           "pipeline_override": {
             "玲儿集结队列4": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    },
+    "伏虎降妖次数": {
+      "type": "input",
+      "label": "",
+      "description": "派出队伍进入返回状态后计数并轮转；达到设置次数或左下角任务图标消失即完成",
+      "inputs": [
+        {
+          "name": "降妖次数",
+          "label": "降妖次数",
+          "default": "1",
+          "pipeline_type": "int",
+          "verify": "^(?:[1-9]\\d{0,3}|10000)$",
+          "pattern_msg": "请输入 1–10000 的整数"
+        }
+      ],
+      "pipeline_override": {
+        "MXU执行外部用例": {
+          "custom_action_param": {
+            "case_id": "auto_fu_hu",
+            "attack_count": "{降妖次数}"
+          }
+        }
+      }
+    },
+    "伏虎出征队列": {
+      "type": "checkbox",
+      "label": "出征队列",
+      "description": "仅勾选队列按队号循环；至少选择一队，默认只选 1。当前队伍进入返回后推进，下一队仍占用则等待空闲",
+      "default_case": [
+        "1"
+      ],
+      "cases": [
+        {
+          "name": "1",
+          "label": "1",
+          "pipeline_override": {
+            "伏虎出征队列1": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "2",
+          "label": "2",
+          "pipeline_override": {
+            "伏虎出征队列2": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "3",
+          "label": "3",
+          "pipeline_override": {
+            "伏虎出征队列3": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "name": "4",
+          "label": "4",
+          "pipeline_override": {
+            "伏虎出征队列4": {
               "enabled": true
             }
           }

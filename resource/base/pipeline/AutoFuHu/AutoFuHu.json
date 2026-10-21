@@ -1,0 +1,11 @@
+{
+  "伏虎降妖定位入口": {
+    "recognition": "TemplateMatch",
+    "template": "AutoFuHu/locate.png",
+    "threshold": 0.8,
+    "roi": [75, -520, 150, 390],
+    "action": "Click",
+    "post_delay": 700,
+    "timeout": 10000
+  }
+}

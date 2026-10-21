@@ -36,6 +36,7 @@ class ConfigurationBasicTests(unittest.TestCase):
         generated=generate()
         self.assertEqual([c.id for c in CaseLoader().load() if c.enabled],
                          [task['name'] for task in generated['task']])
+        self.assertEqual(generated,json.loads((PROJECT_DIR/'resource/interface.tasks.json').read_text(encoding='utf-8')))
 
     def test_rally_defaults_and_queue_configuration(self):
         cases={c.id:c for c in CaseLoader().load()}
@@ -45,6 +46,23 @@ class ConfigurationBasicTests(unittest.TestCase):
         options=generate()['option']
         self.assertEqual(['1'],options['玲儿集结队列']['default_case'])
         self.assertEqual(['1','2','3','4'],options['貔貅出征队列']['default_case'])
+        self.assertEqual({'attack_count':1,'attack_queues':[1]},cases['auto_fu_hu'].parameters)
+        self.assertTrue(cases['auto_fu_hu'].auto_stamina)
+        self.assertEqual(['1'],options['伏虎出征队列']['default_case'])
+        from agent.custom.action.run_configured_case import (
+            parse_attack_count, selected_attack_queues, worker_command_with_options)
+        from unittest.mock import Mock
+        self.assertEqual(2,parse_attack_count('{"case_id":"auto_fu_hu","attack_count":2}'))
+        context=Mock()
+        context.get_node_data.side_effect=lambda name:{'enabled':name in ('伏虎出征队列1','伏虎出征队列3')}
+        self.assertEqual([1,3],selected_attack_queues(context,'伏虎出征队列'))
+        context.get_node_data.return_value={}
+        context.get_node_data.side_effect=None
+        with self.assertRaises(ValueError):
+            selected_attack_queues(context,'伏虎出征队列')
+        command=worker_command_with_options('auto_fu_hu',True,attack_count=2,attack_queues=[1,3])
+        self.assertEqual(['--attack-count','2','--attack-queues','1,3'],command[-4:])
+        self.assertIn('--auto-stamina',command)
 
     def test_stamina_checks_all_sources_and_keeps_actions_on_item_row(self):
         import re

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "auto_fu_hu",
+  "name": "自动伏虎镇伥",
+  "group": "日常任务",
+  "description": "运行前需要先手动选择个人难度。点击大地图左下角伏虎镇伥定位图标，进攻当前小怪；派出队伍进入返回状态后定位下一只，按勾选队列顺序轮转，下一队仍占用时等待空闲。左下角任务图标确认消失，或达到设置次数，均视为任务完成并结束。",
+  "order": 77,
+  "default_checked": true,
+  "enabled": true,
+  "handler": "python",
+  "extension": "agent.custom.action.auto_fu_hu:run",
+  "auto_stamina": true,
+  "parameters": {
+    "attack_count": 1,
+    "attack_queues": [1]
+  }
+}

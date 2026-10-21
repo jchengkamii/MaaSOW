@@ -9,6 +9,7 @@ from agent.custom.action.march.march import March, MarchHandle, SquadRow
 from agent.custom.action.march.state import MarchState as S, MarchTracker, parse_status
 from agent.custom.action.auto_pixiu import Pixiu
 from agent.custom.action.auto_ling_er import LingEr, RallyTracker
+from agent.custom.action.auto_fu_hu import FuHu, FuHuFinished, run as run_fu_hu
 
 
 class MarchBasicTests(unittest.TestCase):
@@ -33,6 +34,8 @@ class MarchBasicTests(unittest.TestCase):
         f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
         f.pause=Mock();f.click=Mock();f.pipeline=Mock(return_value=False)
         f.record_panel_failure=Mock();f.target_dispatch_point=Mock(return_value=None)
+        if kind is FuHu:
+            f.check_icon_completion=Mock()
         return f
 
     def test_bubble_background_fallback_preserves_dispatch_guards(self):
@@ -54,7 +57,7 @@ class MarchBasicTests(unittest.TestCase):
         f.click.assert_not_called()
 
     def test_transition_policy_is_shared_by_all_marches(self):
-        for kind in (March,Pixiu,LingEr):
+        for kind in (March,Pixiu,LingEr,FuHu):
             with self.subTest(kind=kind):
                 f=self.flow(kind)
                 f.panel=Mock(side_effect=[RuntimeError('气泡未出现'),(1,[])])
@@ -63,7 +66,7 @@ class MarchBasicTests(unittest.TestCase):
                 f.click.assert_not_called();f.pipeline.assert_not_called()
 
     def test_panel_button_type_is_required_before_arrow_recognition(self):
-        for kind in (March,Pixiu,LingEr):
+        for kind in (March,Pixiu,LingEr,FuHu):
             with self.subTest(kind=kind):
                 f=self.flow(kind);f.ocr=Mock(return_value=[]);f.templates=Mock()
                 with self.assertRaisesRegex(RuntimeError,'面板按钮'):
@@ -77,7 +80,8 @@ class MarchBasicTests(unittest.TestCase):
         for text in ('L去X：598', 'L00:01:30', '未知去X：598Y:380', '5去X:620', '55去X:620Y:373'):
             self.assertIsNone(parse_status(text))
         for kind,status in ((March,parse_status('L去X：598Y:380')),
-                            (Pixiu,parse_status('5去X:620Y:373')),(LingEr,S.ASSEMBLING)):
+                            (Pixiu,parse_status('5去X:620Y:373')),(LingEr,S.ASSEMBLING),
+                            (FuHu,S.OUTBOUND)):
             with self.subTest(kind=kind):
                 f=self.flow(kind)
                 a=np.random.default_rng(98).random((24,24,3))
@@ -96,7 +100,7 @@ class MarchBasicTests(unittest.TestCase):
                 self.assertEqual(3,f.snapshot.call_count)
 
         # Count OCR can fail while the known portrait and status remain clear.
-        for kind,status in ((March,S.OUTBOUND),(Pixiu,S.OUTBOUND),(LingEr,S.ASSEMBLING)):
+        for kind,status in ((March,S.OUTBOUND),(Pixiu,S.OUTBOUND),(LingEr,S.ASSEMBLING),(FuHu,S.OUTBOUND)):
             f=self.flow(kind)
             a=np.random.default_rng(101).random((24,24,3))
             row=SquadRow(a,status)
@@ -131,6 +135,24 @@ class MarchBasicTests(unittest.TestCase):
         f._submit_from_panel=Mock(return_value=MarchHandle(4,avatars[3],MarchTracker(state=S.OUTBOUND)))
         self.assertEqual(4,f.dispatch_from_panel(existing=[]).queue)
         f._submit_from_panel.assert_called_once_with(4,existing=[],timeout=15)
+
+        # Fuhu rotation waits for the next selected squad even if another is idle.
+        from agent.custom.action.march.dispatch_panel import NoFreeQueue
+        f=self.flow(FuHu)
+        f.allowed_queues=[1,4]
+        f.allowed_avatars={1:avatars[0],4:avatars[3]}
+        handle=MarchHandle(4,avatars[3],MarchTracker(state=S.OUTBOUND))
+        f.dispatch=Mock(side_effect=[NoFreeQueue('第 4 队返回中'),handle])
+        f.close_dispatch_panel=Mock()
+        f.snapshot=Mock(side_effect=[
+            (True,[SquadRow(avatars[3],S.RETURNING)],1),
+            (False,[],0),
+            (True,[SquadRow(avatars[0],S.RETURNING)],1),
+            (True,[SquadRow(avatars[0],S.RETURNING)],1)])
+        self.assertIs(handle,f.dispatch_next(4))
+        self.assertEqual(4,f.snapshot.call_count)
+        self.assertEqual([4,4],[c.kwargs['queue'] for c in f.dispatch.call_args_list])
+        f.close_dispatch_panel.assert_called_once()
 
     def test_rally_completes_only_after_return_and_disappearance(self):
         tracker=RallyTracker()
@@ -195,6 +217,180 @@ class MarchBasicTests(unittest.TestCase):
         f.icon_button.assert_called_once_with('search',(0,.70,.16,.84))
         f.pause.assert_called_once_with(.3)
         f.adjust_level.assert_called_once_with(8)
+
+    def test_fu_hu_rotates_on_its_own_returning_state(self):
+        f=self.flow(FuHu)
+        a,b=np.random.default_rng(24).random((2,24,24,3))
+        handles=[MarchHandle(1,a,MarchTracker(state=S.OUTBOUND),last_count=2),
+                 MarchHandle(2,b,MarchTracker(state=S.OUTBOUND),last_count=1),
+                 MarchHandle(1,a,MarchTracker(state=S.OUTBOUND),last_count=1)]
+        def dispatch(queue):
+            index=f.dispatch_next.call_count-1
+            self.assertEqual(handles[index].queue,queue)
+            if index:
+                self.assertEqual(S.RETURNING,handles[index-1].tracker.state)
+            return handles[f.dispatch_next.call_count-1]
+        f.dispatch_next=Mock(side_effect=dispatch)
+        f.confirm_returned_in_panel=Mock(return_value=False)
+        absent=(True,[],0)
+        f.snapshot=Mock(side_effect=[
+            (True,[SquadRow(a,S.OUTBOUND),SquadRow(b,S.RETURNING)],2),
+            (False,[SquadRow(a,S.RETURNING)],1),  # Unreliable status cannot advance.
+            (True,[SquadRow(a,S.OUTBOUND)],1),
+            absent,absent,absent,  # Absence before a return cannot complete the run.
+            (True,[SquadRow(a,S.RETURNING)],1),
+            (True,[SquadRow(a,S.RETURNING)],1),  # The previous squad is still returning.
+            (True,[SquadRow(b,S.FIGHTING)],1),
+            (True,[SquadRow(b,S.RETURNING)],1),
+            (True,[SquadRow(a,S.FIGHTING)],1),
+            (True,[SquadRow(a,S.RETURNING)],1)])
+        case=SimpleNamespace(parameters={'attack_count':3,'attack_queues':[1,2]})
+        f.wait=Mock()
+        with patch('agent.custom.action.auto_fu_hu.FuHu',return_value=f):
+            self.assertIn('已完成 3 次',run_fu_hu(f.engine,case))
+        self.assertEqual([1,2],f.allowed_queues)
+        self.assertEqual([1,2,1],[c.args[0] for c in f.dispatch_next.call_args_list])
+        self.assertTrue(all(h.tracker.state==S.RETURNING for h in handles))
+        f.wait.assert_not_called()
+        f.wait_until_returning=Mock(side_effect=TimeoutError('返回未确认'))
+        f.dispatch_next=Mock(return_value=handles[0])
+        with patch('agent.custom.action.auto_fu_hu.FuHu',return_value=f):
+            with self.assertRaisesRegex(TimeoutError,'返回未确认'):
+                run_fu_hu(f.engine,case)
+        f.dispatch_next.assert_called_once()
+
+    def test_fu_hu_recovers_map_text_in_status_only_on_agreement(self):
+        from maa.define import Rect
+        image=np.zeros((1306,720,3),dtype=np.uint8)
+        anchor=Rect(225,300,31,31)
+        for texts,expected in (
+            (['返回01724653','返回01724653','导返回017'],S.RETURNING),
+            (['导返回01724653','返回01724653','导返回017'],S.RETURNING),
+            (['导战斗中1724653','战斗中1724653','导战斗中'],S.FIGHTING),
+            (['返回龙王费日','返回龙王费日','返回龙'],S.RETURNING),
+            (['返回龙生[费日','返回龙王费日','返回龙'],S.RETURNING),
+            (['战斗中心主了','战斗中心王','战斗中人'],S.FIGHTING),
+            (['未知返回01724653','00:17:24','返回017'],None),
+            (['返回01724653','战斗中1724653','未知'],None),
+            (['返回龙王','战斗中心王','返回龙'],None),
+            (['返回00:17:24','返回00:17:24','00:17:24'],None),
+        ):
+            f=self.flow(FuHu)
+            f.ocr=Mock(side_effect=[[SimpleNamespace(text=text)] for text in texts])
+            row,observed=f.read_squad_row(image,0,anchor)
+            self.assertEqual(expected,row.status)
+            self.assertEqual(texts,observed)
+        # The task-specific fallback must not relax other march tasks.
+        f=self.flow(March)
+        f.ocr=Mock(side_effect=[[SimpleNamespace(text=text)] for text in
+                               ['返回01724653','返回01724653','导返回017']])
+        self.assertIsNone(f.read_squad_row(image,0,anchor)[0].status)
+
+        # Replay the twentieth dispatch's actual status reads through the
+        # return wait, so Chinese map names cannot leave the squad outbound.
+        f=self.flow(FuHu)
+        f.ocr=Mock(side_effect=[[SimpleNamespace(text=text)] for text in
+                               ['返回龙王费日','返回龙王费日','返回龙']])
+        frame=np.random.default_rng(26).integers(0,256,image.shape,dtype=np.uint8)
+        row,_=f.read_squad_row(frame,0,anchor)
+        handle=MarchHandle(2,row.avatar,MarchTracker(state=S.OUTBOUND),last_count=1)
+        f.snapshot=Mock(return_value=(True,[row],1))
+        self.assertIs(handle,f.wait_until_returning(handle))
+        self.assertEqual(S.RETURNING,handle.tracker.state)
+        f.snapshot.assert_called_once()
+
+    def test_fu_hu_recovers_missed_return_only_after_same_squad_is_idle(self):
+        f=self.flow(FuHu)
+        a,b=np.random.default_rng(28).random((2,24,24,3))
+        handle=MarchHandle(2,a,MarchTracker(state=S.FIGHTING),last_count=1,panel_avatar=a.copy())
+        absent=(True,[],0)
+        f.snapshot=Mock(side_effect=[(True,[SquadRow(a,None)],1),absent,absent,
+                                     (False,[],0),absent,absent,absent])
+        f.confirm_returned_in_panel=Mock(return_value=True)
+        f.dispatch=Mock()
+        self.assertIs(handle,f.wait_until_returning(handle))
+        self.assertEqual(S.COMPLETED,handle.tracker.state)
+        f.confirm_returned_in_panel.assert_called_once_with(handle)
+        self.assertEqual(7,f.snapshot.call_count)
+        f.dispatch.assert_not_called()
+
+        # Inspect the tracked queue twice. A busy badge or changed portrait
+        # on either read must reject the fallback, even if other squads are idle.
+        for busy_flags,portraits,expected in (
+            ([False,False],[a,a],True),
+            ([False,True],[a,a],False),
+            ([False,False],[a,b],False),
+        ):
+            f=self.flow(FuHu)
+            f.locate=Mock();f.open_target_panel=Mock(return_value=True)
+            f.recover_world=Mock();f.dispatch=Mock();f.text_button=Mock()
+            reads=iter(zip(busy_flags,portraits))
+            def panel():
+                busy,avatar=next(reads)
+                f.panel_busy=[False,busy,False,False]
+                return 1,[(True,(0,0),b),(True,(0,0),avatar)]
+            f.ready_dispatch_panel=Mock(side_effect=panel)
+            self.assertEqual(expected,f.confirm_returned_in_panel(handle))
+            self.assertEqual(2,f.ready_dispatch_panel.call_count)
+            f.dispatch.assert_not_called();f.text_button.assert_not_called()
+            f.recover_world.assert_called_once()
+
+    def test_fu_hu_relocates_once_only_when_first_click_leaves_world(self):
+        f=self.flow(FuHu)
+        f.pipeline.return_value=True
+        f.recovery_state=Mock(return_value='大世界默认态')
+        f.target_dispatch_point.side_effect=[None,(300,970)]
+        with patch('agent.custom.action.auto_fu_hu.time.monotonic',
+                   side_effect=[0,0,11,12,12]):
+            f.locate(None)
+        self.assertEqual(2,f.pipeline.call_count)
+        f.click.assert_not_called()
+        f.pipeline.reset_mock()
+        f.recovery_state.return_value='目标弹窗'
+        f.target_dispatch_point.side_effect=None
+        with patch('agent.custom.action.auto_fu_hu.time.monotonic',side_effect=[0,0,11]):
+            with self.assertRaisesRegex(RuntimeError,'未确认伏虎降妖'):
+                f.locate(None)
+        f.pipeline.assert_called_once_with('伏虎降妖定位入口')
+
+    def test_fu_hu_finishes_on_confirmed_missing_icon_without_dispatching_again(self):
+        f=self.flow(FuHu)
+        f.recognize=Mock(side_effect=[SimpleNamespace(hit=False) for _ in range(3)])
+        f.recovery_state=Mock(return_value='大世界默认态')
+        with self.assertRaises(FuHuFinished):
+            FuHu.check_icon_completion(f)
+        self.assertEqual(3,f.recognize.call_count)
+        f.pipeline.assert_not_called();f.click.assert_not_called()
+        # An icon reappearing or an obstructing popup cannot complete the task.
+        f.recognize=Mock(side_effect=[SimpleNamespace(hit=False),SimpleNamespace(hit=True)])
+        FuHu.check_icon_completion(f)
+        f.recognize=Mock(return_value=SimpleNamespace(hit=False))
+        f.recovery_state.return_value='出征弹窗'
+        FuHu.check_icon_completion(f)
+        f.recognize.assert_called_once()
+
+        case=SimpleNamespace(parameters={'attack_count':25,'attack_queues':[1,2]})
+        f.dispatch_next=Mock(side_effect=FuHuFinished('图标消失'))
+        f.wait_until_returning=Mock()
+        with patch('agent.custom.action.auto_fu_hu.FuHu',return_value=f):
+            self.assertIn('已完成：任务图标消失',run_fu_hu(f.engine,case))
+        f.dispatch_next.assert_called_once();f.wait_until_returning.assert_not_called()
+
+        # Also finish if the icon disappears while the last dispatched squad
+        # is still fighting; no return frame or extra dispatch is required.
+        f=self.flow(FuHu)
+        handle=MarchHandle(1,np.zeros((24,24,3)),MarchTracker(state=S.FIGHTING))
+        f.dispatch_next=Mock(return_value=handle)
+        f.check_icon_completion.side_effect=FuHuFinished('图标消失')
+        f.poll_return=Mock()
+        with patch('agent.custom.action.auto_fu_hu.FuHu',return_value=f):
+            self.assertIn('已完成：任务图标消失',run_fu_hu(f.engine,case))
+        f.dispatch_next.assert_called_once();f.poll_return.assert_not_called()
+        f.close_dispatch_panel=Mock()
+        f.snapshot=Mock()
+        with self.assertRaises(FuHuFinished):
+            f.close_and_wait_for_return(1,900)
+        f.close_dispatch_panel.assert_called_once();f.snapshot.assert_not_called()
 
 
 if __name__ == '__main__':

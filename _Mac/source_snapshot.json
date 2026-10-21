@@ -1,18 +1,31 @@
 {
   "source_commit": "77ae5d10fa37c45a5a0b397c3b588ee25c207da3",
   "source_worktree_changes": [
-    "agent/custom/action/march/march.py"
+    "agent/custom/action/march/march.py",
+    "agent/custom/action/auto_fu_hu.py",
+    "agent/custom/action/run_configured_case.py",
+    "agent/recognition_fallback.py",
+    "agent/worker.py",
+    "generate_interface.py",
+    "resource/base/pipeline/Interface/RunConfiguredCase.json",
+    "resource/base/pipeline/AutoFuHu/AutoFuHu.json",
+    "resource/base/image/AutoFuHu/locate.png",
+    "resource/base/image/AutoFuHu/README.md",
+    "resource/tasks/auto_fu_hu.json",
+    "resource/tasks/README.md",
+    "tests/test_config_basic.py",
+    "tests/test_march_basic.py"
   ],
   "shared_sha256": {
     "agent/main.py": "577ff3d883cc368f2fc9dff096eaf5fc949f873311c1cb4d121c538531849561",
-    "agent/recognition_fallback.py": "28f39f8715a00b5275ec6ba88a02290a1328e5069ba3ed476f2d018276cfa0fd",
-    "agent/worker.py": "e5561bb7efd8f94233237d44d95c75eccf4ca20dea565ab0446686f24a74a828",
+    "agent/recognition_fallback.py": "f4e25a62f29e115156cfafc42c8f348a6c201a92c306b9c6ebd2d885a74f4687",
+    "agent/worker.py": "1358500698f58a37465bf40249105d409771e142a634fff1ea9e91fbf7037577",
     "agent/__init__.py": "a97711a54108cda109e9044688b1369dd997707f2d0c0720f0b79c8b3292a2d4",
     "agent/custom/__init__.py": "50450906ea98e1c4e123618026eb5cf0ecfc9f6814457bdc580d261e45e62818",
     "agent/custom/action/auto_ling_er.py": "542958bd327e3ca69356cef01a40f61b9a9139d92b2b39e949fe8f1555ea06c7",
     "agent/custom/action/auto_pixiu.py": "059b0f5a07449b1206ffed82760deb18828b65303d6eed0abe9066f8ad75a542",
     "agent/custom/action/README.md": "0f553e357c40feb58feb9a786d269329bef7128338ece31423de3b695287c31f",
-    "agent/custom/action/run_configured_case.py": "367bbc899ff9006d84100e5667c6b4e4359b4fd31b94cc3cae68e627e8321566",
+    "agent/custom/action/run_configured_case.py": "8361f1eef117431a554a4d2958e112cbfd371dcbb8f89de773fae497ef14cc1d",
     "agent/custom/action/__init__.py": "f296f3b0d35307a809859570c3dde429de805748e5cb8bec65d4b90b779993fe",
     "agent/custom/action/auto_help/auto_help_worker.py": "dcab456c7e77b662e9a5273c418e69491bf2755a1e8f8b5dbb7ce8a33ee43090",
     "agent/custom/action/auto_help/__init__.py": "4c114dccc59a63a582e62a1c6e8007d7faae8bf5d0a60e7482a04a5e61a97e50",
@@ -34,7 +47,7 @@
     "resource/tasks/auto_radar.json": "0f3a62169942fa75f526c5b47fa1a9a54019203ca95b25ee3474d16d9038fafc",
     "resource/tasks/auto_treatment.json": "77db713603e83a6caf3870cc8359bfe1fc37e8a5ca68b6ff3b326c187c11da6a",
     "resource/tasks/close_face_popups.json": "27a1119b1e031cbc58f1a8e5e7ada47be52c2cc1eb5985cd46266f708cf0c989",
-    "resource/tasks/README.md": "541ab712882fdb2434ee5fcc4193f6c21287c89ae5be2c7beffc32b094402d0f",
+    "resource/tasks/README.md": "0db4f2e7457876659fd0c2fbfbdc9850c6d6740dbab74fbe37c963c462b10ed2",
     "resource/tasks/stop_auto_help.json": "19ab83cdbf652808729a7fef85c8d59554afd880224a6c855ab2597ac188e14b",
     "resource/base/image/AutoHelp/auto_help_button.png": "c5bfa515462b2d1e03cd2dfb90483f58966941411326794fd081dac5f8e68f2b",
     "resource/base/image/AutoLingEr/assembling.png": "65168747a42b2cf744e09144239f00d77d84de2021ebf28a0431b9111c772296",
@@ -125,16 +138,21 @@
     "resource/base/pipeline/CloseFacePopups/CloseFacePopups.json": "55105ef32d3b219bac90a40872baefa6d9fb2dd6cb5604d4abec5ae978ab0435",
     "resource/base/pipeline/Common/AutoStamina.json": "3d7539eac62fad033c98e60d1b42afa92a9437be8bbad768d4438fed68b71c50",
     "resource/base/pipeline/Common/March.json": "4c787ee7eca091d85755d42bf02c8b3719285426b9990a236b06689ced56d76b",
-    "resource/base/pipeline/Interface/RunConfiguredCase.json": "d5c64012fe72e1ccbf4f7184837c670087aa85b02d063a88d05749587f837832",
+    "resource/base/pipeline/Interface/RunConfiguredCase.json": "05dcde1535816dc3c0bb753315d2a2b46b3cb54e2ab6c6c628d1dac0d26c3425",
     "resource/base/pipeline/Common/Scene/InnerCity.json": "23460d6a94ccbae7e5642b0e46f32bb26a1baaae3313331b504918415f717a9a",
-    "tests/test_config_basic.py": "39ab9084f4b2e7a5c82548db9c65068e2fad031d332c0b6a3bf4d585005b6d4e",
-    "tests/test_march_basic.py": "0ddc8702655dd33608f52e158246b9765b1bae3f5c2124e4afed6bd25d396f46",
+    "tests/test_config_basic.py": "16008646fb25e8290cb8ac3371dd9c285be93a141fcd87b2747d068213dc0f2d",
+    "tests/test_march_basic.py": "10b799f7b6ac4efd35d5d12c910f029720dd0d33213d7652a1ec1940d7bb1d64",
     "licenses/MaaFramework-LICENSE.md": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
     "licenses/MXU-LICENSE.txt": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
     "AGENTS.md": "b6ea8bd68783bf5062b3c6961a6cc1a04eeeb748b8a154b32ca81b07afbcb9ee",
-    "generate_interface.py": "f4e19554c90f60d7facc4aec80ccc6cd6b8cd002f9eb89effca3dca186e5820f",
+    "generate_interface.py": "ae1952a1c25c4953e5d76ee628f3d02a41f1b3b42bf0befdf71c6d36adc6f10e",
     "tools/mxu/mainUpdate.ts": "cebb9ef585e137c1d8e6e4e4611e9ff68df9d2be48e41fbae3002a5728f3328f",
-    "tools/mxu/UpdateSection.tsx": "e76d901edabb34624698abc74ae4c84059e625f56aa10d8736d0abedb1c9572a"
+    "tools/mxu/UpdateSection.tsx": "e76d901edabb34624698abc74ae4c84059e625f56aa10d8736d0abedb1c9572a",
+    "agent/custom/action/auto_fu_hu.py": "fe14e5d3fa98a347f07196885291d4779b8cebc96e1aacda24f472199dcb98be",
+    "resource/base/pipeline/AutoFuHu/AutoFuHu.json": "9cdca3ddf889b1b794366552e4200f2b364eb19cb1ed2d260f18a3166fd02799",
+    "resource/base/image/AutoFuHu/locate.png": "2abfea2914410757845d0265632aa514e550239af4ed897ab135beb88a4801d6",
+    "resource/base/image/AutoFuHu/README.md": "4e19180c6448b2c59969a16a8d66062946660f8d4bd719e18780f84d6d3b9d02",
+    "resource/tasks/auto_fu_hu.json": "e5659dde707952a21b7adf86791f4c6a1e60c7bee58bf8bd2e7b9be869e66dbc"
   },
   "platform_preserved": [
     "agent/core.py",
@@ -151,5 +169,28 @@
     "tools/package_macos.py"
   ],
   "maafw_version": "5.14.3",
-  "package_version": "1.1.16"
+  "package_version": "1.1.16",
+  "incremental_syncs": [
+    {
+      "date": "2026-10-21",
+      "feature": "自动伏虎镇伥",
+      "source_commit": "6886224a92fee1abed74bc34b742ed4379411bc9",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/auto_fu_hu.py",
+        "agent/custom/action/run_configured_case.py",
+        "agent/recognition_fallback.py",
+        "agent/worker.py",
+        "generate_interface.py",
+        "resource/base/pipeline/Interface/RunConfiguredCase.json",
+        "resource/base/pipeline/AutoFuHu/AutoFuHu.json",
+        "resource/base/image/AutoFuHu/locate.png",
+        "resource/base/image/AutoFuHu/README.md",
+        "resource/tasks/auto_fu_hu.json",
+        "resource/tasks/README.md",
+        "tests/test_config_basic.py",
+        "tests/test_march_basic.py"
+      ]
+    }
+  ]
 }

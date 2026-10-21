@@ -51,9 +51,9 @@ def with_full_image_fallback(recognition: dict) -> dict:
 def apply_full_image_fallbacks(resource) -> int:
     overrides = {}
     for name in resource.node_list:
-        # Stamina actions depend on the item row. Full-screen fallback can turn
-        # cooldown text into a batch button or match another row's use button.
-        if name.startswith("通用自动补体"):
+        # Stamina actions depend on the item row. The Fuhu shortcut must stay
+        # in the lower-left HUD, away from similar monster faces on the map.
+        if name.startswith(("通用自动补体", "伏虎降妖定位")):
             continue
         data = resource.get_node_data(name)
         if data is None:

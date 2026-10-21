@@ -56,6 +56,10 @@ def generate() -> dict:
             task_options.extend(["玲儿集结设置", "玲儿集结队列"])
             for queue in range(1, 5):
                 task["pipeline_override"][f"玲儿集结队列{queue}"] = {"enabled": False}
+        if case.id == "auto_fu_hu":
+            task_options.extend(["伏虎降妖次数", "伏虎出征队列"])
+            for queue in range(1, 5):
+                task["pipeline_override"][f"伏虎出征队列{queue}"] = {"enabled": False}
         if task_options:
             task["option"] = task_options
         tasks.append(task)
@@ -145,6 +149,26 @@ def generate() -> dict:
             "default_case": ["1"],
             "cases": [{"name": str(queue), "label": str(queue),
                        "pipeline_override": {f"玲儿集结队列{queue}": {"enabled": True}}}
+                      for queue in range(1, 5)],
+        }
+    if any(case.id == "auto_fu_hu" for case in cases):
+        options["伏虎降妖次数"] = {
+            "type": "input", "label": "",
+            "description": "派出队伍进入返回状态后计数并轮转；达到设置次数或左下角任务图标消失即完成",
+            "inputs": [{"name": "降妖次数", "label": "降妖次数",
+                        "default": "1", "pipeline_type": "int",
+                        "verify": r"^(?:[1-9]\d{0,3}|10000)$",
+                        "pattern_msg": "请输入 1–10000 的整数"}],
+            "pipeline_override": {"MXU执行外部用例": {"custom_action_param": {
+                "case_id": "auto_fu_hu", "attack_count": "{降妖次数}"
+            }}},
+        }
+        options["伏虎出征队列"] = {
+            "type": "checkbox", "label": "出征队列",
+            "description": "仅勾选队列按队号循环；至少选择一队，默认只选 1。当前队伍进入返回后推进，下一队仍占用则等待空闲",
+            "default_case": ["1"],
+            "cases": [{"name": str(queue), "label": str(queue),
+                       "pipeline_override": {f"伏虎出征队列{queue}": {"enabled": True}}}
                       for queue in range(1, 5)],
         }
     if options:

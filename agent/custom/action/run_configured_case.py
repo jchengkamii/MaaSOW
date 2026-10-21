@@ -54,8 +54,8 @@ def parse_attack_count(raw: str) -> int | None:
     if not isinstance(value, dict) or "attack_count" not in value:
         return None
     from agent.custom.action.auto_pixiu import attack_count
-    if value.get("case_id") != "auto_pixiu":
-        raise ValueError("进攻次数参数只能用于自动打貔貅")
+    if value.get("case_id") not in {"auto_pixiu", "auto_fu_hu"}:
+        raise ValueError("进攻次数参数只能用于自动打貔貅或自动伏虎降妖")
     return attack_count(value["attack_count"])
 
 
@@ -104,10 +104,10 @@ def worker_command_with_options(
     return command
 
 
-def selected_attack_queues(context: Context) -> list[int]:
+def selected_attack_queues(context: Context, prefix: str = "貔貅出征队列") -> list[int]:
     from agent.custom.action.auto_pixiu import attack_queues
     return attack_queues([q for q in range(1, 5)
-                          if (context.get_node_data(f"貔貅出征队列{q}") or {}).get("enabled") is True])
+                          if (context.get_node_data(f"{prefix}{q}") or {}).get("enabled") is True])
 
 
 def selected_rally_queues(context: Context) -> list[int]:
@@ -141,6 +141,8 @@ class RunConfiguredCase(CustomAction):
             rally_options = parse_rally_options(argv.custom_action_param)
             if case_id == "auto_pixiu":
                 rally_options["attack_queues"] = selected_attack_queues(context)
+            if case_id == "auto_fu_hu":
+                rally_options["attack_queues"] = selected_attack_queues(context, "伏虎出征队列")
             if case_id == "auto_ling_er":
                 rally_options["rally_queues"] = selected_rally_queues(context)
         except Exception as exc:
