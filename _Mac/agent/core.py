@@ -409,7 +409,7 @@ class AutomationEngine:
         if self.stop_event.is_set():
             raise InterruptedError("用户停止执行")
         if still_insufficient.succeeded:
-            self.log("没有可领取的免费体力，已关闭补体界面")
+            self.log("补体后仍显示体力不足：未确认可用来源或未成功使用道具，请检查补体识别日志")
             return False
         return True
 

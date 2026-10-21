@@ -46,6 +46,31 @@ class ConfigurationBasicTests(unittest.TestCase):
         self.assertEqual(['1'],options['玲儿集结队列']['default_case'])
         self.assertEqual(['1','2','3','4'],options['貔貅出征队列']['default_case'])
 
+    def test_stamina_checks_all_sources_and_keeps_actions_on_item_row(self):
+        import re
+        nodes=json.loads((PROJECT_DIR/'resource/base/pipeline/Common/AutoStamina.json').read_text(encoding='utf-8'))
+        after_scroll=nodes['通用自动补体向下查找100体力']['next']
+        self.assertEqual([f'通用自动补体向下后查找{n}体力' for n in (10,50,100)],after_scroll[:-1])
+        for prefix in ('通用自动补体','通用自动补体向下后'):
+            batch=nodes[f'{prefix}批量使用50体力']
+            self.assertLessEqual(batch['threshold'],0.742651)  # Actual failed x3 recognition.
+            self.assertTrue(re.fullmatch(batch['expected'],'×3'))
+            self.assertIsNone(re.fullmatch(batch['expected'],'x0'))
+            use=nodes[f'{prefix}单次使用50体力']['any_of'][-1]
+            self.assertEqual('^使用$',use['expected'])
+            self.assertEqual(f'{prefix}查找50体力',use['roi'])
+            source=nodes[f'{prefix}查找100体力']
+            self.assertEqual(('Vertical',-1),(source['order_by'],source['index']))
+            for amount in (10,50,100):
+                item=f'{prefix}查找{amount}体力'
+                stock=nodes[nodes[item]['next'][0]]
+                self.assertEqual(item,stock['roi'])
+                self.assertTrue(re.fullmatch(stock['expected'],'拥有：20'))
+                for unavailable in ('拥有：0','逍遥剑仙为您提供额外体力'):
+                    self.assertIsNone(re.fullmatch(stock['expected'],unavailable))
+            # An unavailable intermediate type must still fall through to the rest.
+            self.assertIn(f'{prefix}查找100体力',nodes[f'{prefix}查找10体力']['next'])
+
 
 if __name__ == '__main__':
     unittest.main()
