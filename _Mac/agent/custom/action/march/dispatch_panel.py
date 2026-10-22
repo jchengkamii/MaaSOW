@@ -28,6 +28,79 @@ class DispatchPanel:
         # A generic coordinate target has no identity proof for a second click.
         return None
 
+    def open_world_search(self, timeout=8):
+        """Open the shared map search entry; the caller selects a tab/target."""
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError('搜索入口等待时间必须为有限正数')
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            image = self.screenshot()
+            h, w = image.shape[:2]
+            top, right = int(h * .70), int(w * .16)
+            hits = self.templates(image[top:int(h * .84), :right], 'search', .75)
+            if len(hits) == 1:
+                box = hits[0].box
+                self.click(box.x + box.w / 2, top + box.y + box.h / 2)
+                self.pause(.5)
+                return True
+            self.pause(.2)
+        self.record_panel_failure(self.screenshot())
+        return False
+
+    def confirm_idle_in_panel(self, handle, *, select_target, keep_open=False):
+        """Inspect a known squad without submitting or changing task progress."""
+        from .march import similarity
+        if handle.panel_avatar is None:
+            raise RuntimeError(f'第 {handle.queue} 队缺少派遣前头像，无法安全复核')
+        confirmed = False
+        restored = False
+        try:
+            if getattr(self, 'return_panel_open', False) is not True:
+                # A retained panel needs the HUD baseline for the next dispatch.
+                self.return_panel_rows = self.pre_dispatch_rows() if keep_open else None
+                select_target(self.engine)
+                if not self.open_target_panel():
+                    raise RuntimeError(f'无法打开{self.dispatch_caption}面板复核队列空闲')
+                self.return_panel_open = True
+            self.pause(.6)
+            for _ in range(2):
+                for attempt in range(3):
+                    try:
+                        _, slots = self.ready_dispatch_panel()
+                        break
+                    except RelocateAfterStamina:
+                        if attempt == 2:
+                            raise
+                        select_target(self.engine)
+                        if not self.open_target_panel():
+                            raise RuntimeError(f'补体后无法重新打开{self.dispatch_caption}面板复核')
+                unlocked, _, avatar = slots[handle.queue - 1]
+                busy = self.panel_busy[handle.queue - 1]
+                score = similarity(avatar, handle.panel_avatar)
+                self.engine.log(f'第 {handle.queue} 队空闲复核（{self.dispatch_caption}）：'
+                                f'队号可用={unlocked}，占用={busy}，头像相似度={score:.3f}')
+                if not unlocked or busy or score < .80:
+                    return False
+                self.pause(.35)
+            confirmed = True
+            return True
+        except InterruptedError:
+            raise
+        except RuntimeError as exc:
+            self.engine.log(f'队列空闲复核未确认：{exc}；本次未计数、未派遣')
+            self.record_panel_failure(self.screenshot())
+            self.recover_world()
+            restored = True
+            return False
+        finally:
+            if not confirmed or not keep_open:
+                try:
+                    if not restored and getattr(self, 'return_panel_open', False) is True:
+                        self.recover_world()
+                finally:
+                    self.return_panel_open = False
+                    self.return_panel_rows = None
+
     def open_target_panel(self, timeout=8):
         deadline = time.monotonic() + timeout
         previous, stable = None, 0

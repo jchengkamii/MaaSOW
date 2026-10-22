@@ -149,26 +149,8 @@ class FuHu(March):
         raise TimeoutError('等待伏虎降妖所选队列空闲超时，未再次派遣')
 
     def confirm_returned_in_panel(self, handle):
-        if handle.panel_avatar is None:
-            raise RuntimeError(f'第 {handle.queue} 队缺少派遣前头像，不能复核回城状态')
         self.engine.log(f'第 {handle.queue} 队连续消失，打开面板只读复核原队伍是否已回城')
-        try:
-            self.locate(self.engine)
-            if not self.open_target_panel():
-                raise RuntimeError('无法打开出征面板复核回城状态')
-            for _ in range(2):
-                _, slots = self.ready_dispatch_panel()
-                unlocked, _, avatar = slots[handle.queue - 1]
-                busy = self.panel_busy[handle.queue - 1]
-                score = similarity(avatar, handle.panel_avatar)
-                self.engine.log(f'第 {handle.queue} 队回城复核：队号可用={unlocked}，'
-                                f'占用={busy}，头像相似度={score:.3f}')
-                if not unlocked or busy or score < .80:
-                    return False
-                self.pause(.35)
-            return True
-        finally:
-            self.recover_world()
+        return self.confirm_idle_in_panel(handle, select_target=self.locate)
 
     def poll_return(self, handle):
         # Keep the common state rules, while retaining a conservative absence

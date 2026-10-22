@@ -45,7 +45,14 @@ target 使用 Maa 归一化截图坐标。需要业务导航时可用
 提交结果不明确时只恢复界面并核对对应队伍，不再次提交；仅明确的体力不足提示
 允许补体后重试。任务计数由业务层根据确认出发或完整返回规则决定。
 
-只读返回复核也使用 `ready_dispatch_panel()`，随后至少两帧核对队号、占用和派遣前头像。
+大地图搜索入口统一使用 `open_world_search()`；原图匹配失败时只匹配放大镜内部图形，
+模板位于 `Common/March/`。调用方继续负责页签、等级和目标选择。
+
+只读返回复核统一调用 `confirm_idle_in_panel(handle, select_target=定位回调, keep_open=False)`，
+定位、打开面板、补体后的重新定位及失败恢复均在同一异常处理范围内。
+随后通过 `ready_dispatch_panel()` 至少两帧核对队号、占用和派遣前头像；
+它只返回复核结果，不派遣、不修改任务计数。重试次数及进入复核的条件由任务决定。
+需要直接继续派遣时传 `keep_open=True`，保留面板和派遣前小队快照。
 `panel(image)` 是单帧识别接口，业务流程不要用它代替面板准备和恢复。
 目标任务提供 `target_dispatch_point(image)` 和 `target_tooltip_pattern`，以及
 `dispatch_caption`（出征或组队）；通用入口要求图标连续三帧稳定。

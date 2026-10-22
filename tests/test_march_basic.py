@@ -65,6 +65,25 @@ class MarchBasicTests(unittest.TestCase):
                 self.assertEqual(2,f.panel.call_count)
                 f.click.assert_not_called();f.pipeline.assert_not_called()
 
+        # Map search and read-only inspection are inherited, so new march
+        # tasks get the same recognition/recovery rules without copying code.
+        for kind in (March,Pixiu,LingEr,FuHu):
+            self.assertIs(kind.open_world_search,March.open_world_search)
+            self.assertIs(kind.confirm_idle_in_panel,March.confirm_idle_in_panel)
+            f=self.flow(kind)
+            icon=SimpleNamespace(box=SimpleNamespace(x=30,y=99,w=44,h=42))
+            f.recognize=Mock(side_effect=[SimpleNamespace(hit=False,filtered_results=[]),
+                                         SimpleNamespace(hit=True,filtered_results=[icon])])
+            self.assertTrue(f.open_world_search())
+            f.click.assert_called_once()
+            params=f.recognize.call_args.args[2]
+            self.assertEqual(['Common/March/search_symbol.png'],params.template)
+            self.assertEqual([.85],params.threshold)
+            f.click.reset_mock();f.templates=Mock(return_value=[icon,icon])
+            with patch('agent.custom.action.march.dispatch_panel.time.monotonic',side_effect=[0,0,9]):
+                self.assertFalse(f.open_world_search())
+            f.click.assert_not_called();f.record_panel_failure.assert_called_once()
+
     def test_panel_button_type_is_required_before_arrow_recognition(self):
         for kind in (March,Pixiu,LingEr,FuHu):
             with self.subTest(kind=kind):
@@ -193,6 +212,31 @@ class MarchBasicTests(unittest.TestCase):
         f.screenshot.return_value=np.random.default_rng(10).integers(0,256,frame.shape,dtype=np.uint8)
         self.assertFalse(f.snapshot()[0])
 
+        # A search miss during return inspection must be recoverable and must
+        # never count completion or submit the same squad again.
+        f=self.flow(LingEr)
+        avatar=np.random.default_rng(30).random((24,24,3))
+        tracker=RallyTracker(state=S.FIGHTING,assembled=True,departed=True,
+                             missing_after_departure=3)
+        handle=MarchHandle(1,avatar,tracker,panel_avatar=avatar.copy())
+        f.snapshot=Mock(return_value=(True,[],0))
+        f.locate=Mock(side_effect=[RuntimeError('未找到大地图左下角搜索图标'),None])
+        f.recover_world=Mock();f.close_dispatch_panel=Mock()
+        f.text_button=Mock(return_value=True);f.open_target_panel=Mock(return_value=True)
+        f.ready_dispatch_panel=Mock(return_value=(1,[(True,(0,0),avatar)]))
+        f.panel_busy=[False]
+        self.assertFalse(f.confirm_returned_in_panel(handle,keep_open=True))
+        self.assertEqual(S.FIGHTING,tracker.state)
+        self.assertFalse(f.return_panel_open)
+        f.recover_world.assert_called_once();f.record_panel_failure.assert_called_once()
+        f.text_button.assert_not_called();f.open_target_panel.assert_not_called()
+        f.close_dispatch_panel.assert_not_called()
+        self.assertTrue(f.confirm_returned_in_panel(handle,keep_open=True))
+        self.assertEqual(2,f.ready_dispatch_panel.call_count)
+        self.assertTrue(f.return_panel_open)
+        f.open_target_panel.assert_called_once_with()
+        f.text_button.assert_not_called();f.close_dispatch_panel.assert_not_called()
+
     def test_rally_uses_level_controls_and_button_without_monster_name(self):
         f=LingEr.__new__(LingEr);f.engine=Mock();f.level=8
         f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
@@ -209,12 +253,12 @@ class MarchBasicTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'加减按钮'):
             f.search_level()
 
-        f.icon_button=Mock(return_value=True)
+        f.open_world_search=Mock(return_value=True)
         f.region_text=Mock(side_effect=[False,False,True,True])
         f.adjust_level=Mock();f.pause=Mock()
         f.target_dispatch_point=Mock(return_value=(100,200))
         f.locate(None)
-        f.icon_button.assert_called_once_with('search',(0,.70,.16,.84))
+        f.open_world_search.assert_called_once_with()
         f.pause.assert_called_once_with(.3)
         f.adjust_level.assert_called_once_with(8)
 

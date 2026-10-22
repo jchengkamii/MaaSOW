@@ -150,6 +150,11 @@ class March(DispatchPanel):
                                    JTemplateMatch(template=["Common/March/bubble_masked.png"],
                                                   threshold=[.85], green_mask=True,
                                                   method=5, order_by="Vertical"))
+        if name == "search" and not detail.hit:
+            # Exclude the outer edge affected by terrain and marching lines.
+            detail = self.recognize(image.copy(), JRecognitionType.TemplateMatch,
+                                    JTemplateMatch(template=["Common/March/search_symbol.png"],
+                                                   threshold=[.85], order_by="Vertical"))
         return detail.filtered_results if detail.hit else []
 
     def click(self, x, y):

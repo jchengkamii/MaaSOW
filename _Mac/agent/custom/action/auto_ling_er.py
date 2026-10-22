@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from maa.pipeline import JRecognitionType, JTemplateMatch
 from agent.custom.action.auto_pixiu import attack_count
-from agent.custom.action.march.dispatch_panel import NoFreeQueue, ZeroDisciples, RelocateAfterStamina
+from agent.custom.action.march.dispatch_panel import NoFreeQueue, ZeroDisciples
 from agent.custom.action.march.march import March, similarity
 from agent.custom.action.march.state import MarchState as S, MarchTracker
 
@@ -155,7 +155,7 @@ class LingEr(March):
     def locate(self, _engine):
         tab_region = (.62, .53, 1, .61)
         if not self.region_text('^兽潮首领$', tab_region):
-            if not self.icon_button('search', (0, .70, .16, .84)):
+            if not self.open_world_search():
                 raise RuntimeError('未找到大地图左下角搜索图标')
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
@@ -183,57 +183,10 @@ class LingEr(March):
 
 
     def confirm_returned_in_panel(self, handle, *, keep_open=False):
-        """Read-only squad inspection when brief travel/return frames were missed."""
         if not handle.tracker.ready_for_return_check:
             return False
-        if handle.panel_avatar is None:
-            raise RuntimeError(f'第 {handle.queue} 队缺少派遣前的面板头像，无法安全复核')
         self.engine.log(f"第 {handle.queue} 队行军后连续消失，复核组队面板是否已返回空闲")
-        if getattr(self, 'return_panel_open', False) is not True:
-            # Preserve a reliable HUD baseline before the panel hides it. The
-            # common dispatch confirmation needs this to identify an added row.
-            self.return_panel_rows = March.pre_dispatch_rows(self)
-            self.locate(self.engine)
-            if not self.text_button('进攻'):
-                raise RuntimeError('无法打开集结面板复核返回状态，未计数、未再次组队')
-            self.return_panel_open = True
-        confirmed = False
-        restored = False
-        try:
-            self.pause(.6)
-            for _ in range(2):
-                for attempt in range(3):
-                    try:
-                        _, slots = self.ready_dispatch_panel()
-                        break
-                    except RelocateAfterStamina:
-                        if attempt == 2:
-                            raise
-                        self.locate(self.engine)
-                        if not self.open_target_panel():
-                            raise RuntimeError('补体后无法重新打开集结面板复核')
-                unlocked, _, avatar = slots[handle.queue - 1]
-                score = similarity(avatar, handle.panel_avatar)
-                busy = self.panel_busy[handle.queue - 1]
-                self.engine.log(f'第 {handle.queue} 队返回复核：队号可用={unlocked}，占用={busy}，面板头像相似度={score:.3f}')
-                if not unlocked or busy or score < .80:
-                    return False
-                self.pause(.35)
-            confirmed = True
-            return True
-        except InterruptedError:
-            raise
-        except RuntimeError as exc:
-            self.engine.log(f'返回复核面板未确认：{exc}；本次未计数')
-            self.recover_world()
-            restored = True
-            return False
-        finally:
-            if not confirmed or not keep_open:
-                if not restored:
-                    self.close_dispatch_panel()
-                self.return_panel_open = False
-                self.return_panel_rows = None
+        return self.confirm_idle_in_panel(handle, select_target=self.locate, keep_open=keep_open)
 
     def observe_active(self, valid, rows):
         # Every reliable HUD snapshot updates all owned squads, including frames
