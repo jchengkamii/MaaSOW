@@ -94,8 +94,12 @@
   },
   "自动治疗点击治疗入口": {
     "recognition": "TemplateMatch",
-    "template": "AutoTreatment/treatment_entry.png",
-    "threshold": 0.68,
+    "template": [
+      "AutoTreatment/treatment_entry.png",
+      "AutoTreatment/treatment_entry_red.png"
+    ],
+    "threshold": [0.68, 0.68],
+    "green_mask": true,
     "roi": [
       70,
       880,
@@ -235,7 +239,7 @@
       180
     ]
   },
-  "自动治疗点击仙盟互助": {
+  "自动治疗确认仙盟互助": {
     "recognition": "TemplateMatch",
     "template": "AutoTreatment/alliance_help.png",
     "threshold": 0.66,
@@ -244,8 +248,22 @@
       1050,
       340,
       190
+    ]
+  },
+  "自动治疗点击仙盟互助": {
+    "recognition": "And",
+    "all_of": [
+      "自动治疗确认治疗界面",
+      "自动治疗确认仙盟互助"
     ],
+    "box_index": 1,
     "action": "Click",
+    "target_offset": [
+      90,
+      25,
+      -180,
+      -50
+    ],
     "post_delay": 700
   },
   "自动治疗关闭治疗界面": {
@@ -279,6 +297,7 @@
     "recognition": "TemplateMatch",
     "template": "AutoTreatment/treatment_in_progress.png",
     "threshold": 0.68,
+    "green_mask": true,
     "roi": [
       70,
       880,
@@ -286,10 +305,52 @@
       220
     ]
   },
+  "自动治疗确认未协助": {
+    "recognition": "TemplateMatch",
+    "template": "AutoTreatment/treatment_help_pending.png",
+    "threshold": 0.68,
+    "green_mask": true,
+    "roi": [70, 880, 150, 220]
+  },
+  "自动治疗点击未协助图标": {
+    "recognition": "And",
+    "all_of": [
+      "自动治疗确认未协助",
+      {
+        "recognition": "Or",
+        "any_of": ["自动治疗确认内城", "自动治疗确认大世界"]
+      }
+    ],
+    "box_index": 0,
+    "action": "Click",
+    "target_offset": [28, 28, -56, -56],
+    "post_delay": 700
+  },
+  "自动治疗确认已协助": {
+    "recognition": "TemplateMatch",
+    "template": "AutoTreatment/treatment_in_progress.png",
+    "threshold": 0.68,
+    "green_mask": true,
+    "roi": [70, 880, 150, 220]
+  },
+  "自动治疗确认疑似治疗图标": {
+    "recognition": "TemplateMatch",
+    "template": [
+      "AutoTreatment/treatment_entry.png",
+      "AutoTreatment/treatment_entry_red.png",
+      "AutoTreatment/treatment_help_pending.png",
+      "AutoTreatment/treatment_in_progress.png",
+      "AutoTreatment/treatment_complete.png"
+    ],
+    "threshold": [0.5, 0.5, 0.5, 0.5, 0.5],
+    "green_mask": true,
+    "roi": [70, 880, 150, 220]
+  },
   "自动治疗收取治疗完成": {
     "recognition": "TemplateMatch",
     "template": "AutoTreatment/treatment_complete.png",
     "threshold": 0.68,
+    "green_mask": true,
     "roi": [
       70,
       880,

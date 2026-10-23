@@ -7,6 +7,11 @@ SEARCH_TYPES = {"TemplateMatch", "FeatureMatch", "ColorMatch", "OCR",
                 "NeuralNetworkClassify", "NeuralNetworkDetect"}
 LOCAL_NAME = "__MaaSOW_roi_first__"
 FULL_NAME = "__MaaSOW_full_image__"
+TREATMENT_HUD_NODES = {
+    "自动治疗点击治疗入口", "自动治疗确认正在治疗图标", "自动治疗收取治疗完成",
+    "自动治疗确认疑似治疗图标",
+    "自动治疗确认未协助", "自动治疗确认已协助",
+}
 
 
 def _inline(recognition: dict, name: str) -> dict:
@@ -53,7 +58,8 @@ def apply_full_image_fallbacks(resource) -> int:
     for name in resource.node_list:
         # Stamina actions depend on the item row. The Fuhu shortcut must stay
         # in the lower-left HUD, away from similar monster faces on the map.
-        if name.startswith(("通用自动补体", "伏虎降妖定位")):
+        # Treatment's three states also depend on the lower-left HUD location.
+        if name.startswith(("通用自动补体", "伏虎降妖定位")) or name in TREATMENT_HUD_NODES:
             continue
         data = resource.get_node_data(name)
         if data is None:

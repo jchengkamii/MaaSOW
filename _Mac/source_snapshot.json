@@ -14,11 +14,19 @@
     "resource/tasks/auto_fu_hu.json",
     "resource/tasks/README.md",
     "tests/test_config_basic.py",
-    "tests/test_march_basic.py"
+    "tests/test_march_basic.py",
+    "agent/custom/action/auto_treatment/auto_treatment_cycle.py",
+    "resource/base/pipeline/AutoTreatment/AutoTreatment.json",
+    "resource/tasks/auto_treatment.json",
+    "resource/base/image/AutoTreatment/treatment_entry.png",
+    "resource/base/image/AutoTreatment/treatment_entry_red.png",
+    "resource/base/image/AutoTreatment/treatment_in_progress.png",
+    "resource/base/image/AutoTreatment/treatment_complete.png",
+    "resource/base/image/AutoTreatment/treatment_help_pending.png"
   ],
   "shared_sha256": {
     "agent/main.py": "577ff3d883cc368f2fc9dff096eaf5fc949f873311c1cb4d121c538531849561",
-    "agent/recognition_fallback.py": "f4e25a62f29e115156cfafc42c8f348a6c201a92c306b9c6ebd2d885a74f4687",
+    "agent/recognition_fallback.py": "74f6648e70532b73e136090f5519d02282bb0f3e058df4b1d211fbed8e9a5278",
     "agent/worker.py": "1358500698f58a37465bf40249105d409771e142a634fff1ea9e91fbf7037577",
     "agent/__init__.py": "a97711a54108cda109e9044688b1369dd997707f2d0c0720f0b79c8b3292a2d4",
     "agent/custom/__init__.py": "50450906ea98e1c4e123618026eb5cf0ecfc9f6814457bdc580d261e45e62818",
@@ -30,7 +38,7 @@
     "agent/custom/action/auto_help/auto_help_worker.py": "dcab456c7e77b662e9a5273c418e69491bf2755a1e8f8b5dbb7ce8a33ee43090",
     "agent/custom/action/auto_help/__init__.py": "4c114dccc59a63a582e62a1c6e8007d7faae8bf5d0a60e7482a04a5e61a97e50",
     "agent/custom/action/auto_treatment/auto_treatment.py": "fc3c703e7c1fb20518f503d2bad30e2d55c9ad9abae5ccb7aee64f6710c11462",
-    "agent/custom/action/auto_treatment/auto_treatment_cycle.py": "8bcae73964b375eebb7bed1386c4aa063a0868255c3b65b72e3b94369dd983e4",
+    "agent/custom/action/auto_treatment/auto_treatment_cycle.py": "c16280bc4508369ca03fe559e82fedf1143173150a35641666b0f520272db9e4",
     "agent/custom/action/auto_treatment/__init__.py": "af81c5d8d26c9fce291e683315f972883889cc8eed8bbef89c3597b8676ff988",
     "agent/custom/action/march/dispatch_panel.py": "eaa6cb5b13a3a180cb0af94e742072e259d7d3a8257d516b7152ddb34471a6d9",
     "agent/custom/action/march/march.py": "d23a77cb46a6027d852da095528ef3289f7d8edba56676615c4071265ac87d85",
@@ -45,7 +53,7 @@
     "resource/tasks/auto_ling_er.json": "15d1af7c835a9e9cd3ff6fd52e6c9c26c4e845cc5d113741d40d82c5306e482c",
     "resource/tasks/auto_pixiu.json": "34e0535a11cea55353fecad4dcecdcd59ddefa1385f82103e002007c54f5cb73",
     "resource/tasks/auto_radar.json": "0f3a62169942fa75f526c5b47fa1a9a54019203ca95b25ee3474d16d9038fafc",
-    "resource/tasks/auto_treatment.json": "77db713603e83a6caf3870cc8359bfe1fc37e8a5ca68b6ff3b326c187c11da6a",
+    "resource/tasks/auto_treatment.json": "59ac372bb4d3eee217ff37bc6ee648c8a292ace72364881e8ee6ea66c2f9d09f",
     "resource/tasks/close_face_popups.json": "27a1119b1e031cbc58f1a8e5e7ada47be52c2cc1eb5985cd46266f708cf0c989",
     "resource/tasks/README.md": "0db4f2e7457876659fd0c2fbfbdc9850c6d6740dbab74fbe37c963c462b10ed2",
     "resource/tasks/stop_auto_help.json": "19ab83cdbf652808729a7fef85c8d59554afd880224a6c855ab2597ac188e14b",
@@ -89,9 +97,9 @@
     "resource/base/image/AutoRadar/reward_title_runtime.png": "dffbcc652eb5928d7a549deb50ae3e565548b33c022e74002be7af387a0933ca",
     "resource/base/image/AutoTreatment/alliance_help.png": "fc2d4176ae69bb03e2f85314c2b3463c92f0288358e162f822165233d5d6ef25",
     "resource/base/image/AutoTreatment/treatment_close.png": "c68164c411b5d8fcfdc8b9b5fcb0407e70d73166886ddd111cb2eabb10330ee1",
-    "resource/base/image/AutoTreatment/treatment_complete.png": "63eb10f66ffeb8f2122a970f76a9e4c3cbd181da3262c2bf04d70be006f56390",
-    "resource/base/image/AutoTreatment/treatment_entry.png": "12311ede8ae969badbb3977abf9267767276f578855adac6f33855f08b05c872",
-    "resource/base/image/AutoTreatment/treatment_in_progress.png": "6ee03f5ffc94dbd4541cb4a9081c28b855d07677ed5fb463c274a32b463a207d",
+    "resource/base/image/AutoTreatment/treatment_complete.png": "5d8e3ee5c433aae367336a38eb95589a8803bbc99efdb0b3cac65a99a58f2bae",
+    "resource/base/image/AutoTreatment/treatment_entry.png": "64b8d39a70726320d99b422b62c9ecab8c7e888542c2985f07717e1c202ccec4",
+    "resource/base/image/AutoTreatment/treatment_in_progress.png": "e7d2e3407f4c9a9a21b47b9903d09747da0d2b84c455cd9aa0d2372267f6bf95",
     "resource/base/image/AutoTreatment/treatment_running.png": "6026f54c799a64097f80cde662b808dd341709b68d2b4d39653cd11863c159d8",
     "resource/base/image/AutoTreatment/treatment_title.png": "774c3fc0de07e469522fbec96643f87c5d864d722e57fbe8e09058ee5f9cdc20",
     "resource/base/image/AutoTreatment/treat_button.png": "1e4f95150a0492b4955dee18869b1cbfa4802f685d77d176b1802cd12d8d4c7f",
@@ -134,13 +142,13 @@
     "resource/base/model/ocr/march_zh/rec.onnx": "da4815ea386ee8083be319da8d20e70f4fdb0b6404ba0d2da7f675831e1b37fa",
     "resource/base/pipeline/AutoHelp/AutoHelp.json": "e4bd71a06c28aeff693e6cc67703bd4d6e7c6edd214fbd9afb2c79b4cfa408b4",
     "resource/base/pipeline/AutoRadar/AutoRadar.json": "ec5a8b8663316a0aa28620e90838434709fbc809aa2a95b1096e95d97340bd1d",
-    "resource/base/pipeline/AutoTreatment/AutoTreatment.json": "bd082e46993b46fb103c8a16e8cfce967e7f3677d2015a35ae4b1e002864600a",
+    "resource/base/pipeline/AutoTreatment/AutoTreatment.json": "06264fd9eabeb9f45babb5e55689dc9e429955355027aac5dfdeedde806db37d",
     "resource/base/pipeline/CloseFacePopups/CloseFacePopups.json": "55105ef32d3b219bac90a40872baefa6d9fb2dd6cb5604d4abec5ae978ab0435",
     "resource/base/pipeline/Common/AutoStamina.json": "3d7539eac62fad033c98e60d1b42afa92a9437be8bbad768d4438fed68b71c50",
     "resource/base/pipeline/Common/March.json": "4c787ee7eca091d85755d42bf02c8b3719285426b9990a236b06689ced56d76b",
     "resource/base/pipeline/Interface/RunConfiguredCase.json": "05dcde1535816dc3c0bb753315d2a2b46b3cb54e2ab6c6c628d1dac0d26c3425",
     "resource/base/pipeline/Common/Scene/InnerCity.json": "23460d6a94ccbae7e5642b0e46f32bb26a1baaae3313331b504918415f717a9a",
-    "tests/test_config_basic.py": "16008646fb25e8290cb8ac3371dd9c285be93a141fcd87b2747d068213dc0f2d",
+    "tests/test_config_basic.py": "9f47aa7a612774ece8cbd40baf6cd93a44c5883cbb4e71225adbc88af37461f4",
     "tests/test_march_basic.py": "10b799f7b6ac4efd35d5d12c910f029720dd0d33213d7652a1ec1940d7bb1d64",
     "licenses/MaaFramework-LICENSE.md": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
     "licenses/MXU-LICENSE.txt": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
@@ -152,7 +160,9 @@
     "resource/base/pipeline/AutoFuHu/AutoFuHu.json": "9cdca3ddf889b1b794366552e4200f2b364eb19cb1ed2d260f18a3166fd02799",
     "resource/base/image/AutoFuHu/locate.png": "2abfea2914410757845d0265632aa514e550239af4ed897ab135beb88a4801d6",
     "resource/base/image/AutoFuHu/README.md": "4e19180c6448b2c59969a16a8d66062946660f8d4bd719e18780f84d6d3b9d02",
-    "resource/tasks/auto_fu_hu.json": "e5659dde707952a21b7adf86791f4c6a1e60c7bee58bf8bd2e7b9be869e66dbc"
+    "resource/tasks/auto_fu_hu.json": "e5659dde707952a21b7adf86791f4c6a1e60c7bee58bf8bd2e7b9be869e66dbc",
+    "resource/base/image/AutoTreatment/treatment_entry_red.png": "85b242122ff87bf52bc8f327d9710aa929396d984c28cbbdf20725b27c951c7c",
+    "resource/base/image/AutoTreatment/treatment_help_pending.png": "9f8c3096c7689bf50a2933dd12502f54c6df79b09e7ad93ab20446a14fddb053"
   },
   "platform_preserved": [
     "agent/core.py",
@@ -190,6 +200,24 @@
         "resource/tasks/README.md",
         "tests/test_config_basic.py",
         "tests/test_march_basic.py"
+      ]
+    },
+    {
+      "date": "2026-10-23",
+      "feature": "自动治疗协助状态及圆形图标识别",
+      "source_commit": "86b37f7c86c44b7c9018b0c1f2c1a98c48500d4d",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/auto_treatment/auto_treatment_cycle.py",
+        "agent/recognition_fallback.py",
+        "resource/base/pipeline/AutoTreatment/AutoTreatment.json",
+        "resource/tasks/auto_treatment.json",
+        "tests/test_config_basic.py",
+        "resource/base/image/AutoTreatment/treatment_entry.png",
+        "resource/base/image/AutoTreatment/treatment_entry_red.png",
+        "resource/base/image/AutoTreatment/treatment_in_progress.png",
+        "resource/base/image/AutoTreatment/treatment_complete.png",
+        "resource/base/image/AutoTreatment/treatment_help_pending.png"
       ]
     }
   ]

@@ -14,7 +14,7 @@
     "click_delay": 0.4,
     "recognition_timeout": 1.5,
     "max_adjustments": 2000,
-    "poll_interval": 10.0,
+    "poll_interval": 2.0,
     "empty_confirmations": 3,
     "cooperative_mutex": true
   }
