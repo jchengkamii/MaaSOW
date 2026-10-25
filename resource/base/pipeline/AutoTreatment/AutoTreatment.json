@@ -229,14 +229,31 @@
     "post_delay": 900
   },
   "自动治疗确认治疗进行中": {
-    "recognition": "TemplateMatch",
-    "template": "AutoTreatment/treatment_running.png",
-    "threshold": 0.66,
-    "roi": [
-      210,
-      940,
-      310,
-      180
+    "recognition": "Or",
+    "any_of": [
+      {
+        "recognition": "OCR",
+        "roi": [
+          250,
+          1005,
+          310,
+          50
+        ],
+        "expected": "治疗进行中",
+        "only_rec": true,
+        "threshold": 0.2
+      },
+      {
+        "recognition": "TemplateMatch",
+        "template": "AutoTreatment/treatment_running.png",
+        "threshold": 0.66,
+        "roi": [
+          210,
+          940,
+          310,
+          180
+        ]
+      }
     ]
   },
   "自动治疗确认仙盟互助": {
