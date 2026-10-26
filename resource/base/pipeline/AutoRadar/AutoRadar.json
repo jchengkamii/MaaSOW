@@ -11,6 +11,7 @@
     "next": ["自动雷达点击执事堂"]
   },
   "自动雷达确认大世界": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "And",
     "all_of": [
       "内城主界面左下特征",
@@ -25,6 +26,7 @@
     "next": ["自动雷达点击执事堂"]
   },
   "自动雷达点击黄色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/return_yellow_reference.png", "AutoRadar/return_yellow_runtime.png"],
     "threshold": [0.68, 0.68],
@@ -35,6 +37,7 @@
     "next": ["自动雷达"]
   },
   "自动雷达点击蓝色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/return_blue_reference.png", "AutoRadar/return_blue_runtime.png"],
     "threshold": [0.68, 0.68],
@@ -45,6 +48,7 @@
     "next": ["自动雷达"]
   },
   "自动雷达点击执事堂": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "And",
     "all_of": [
       {
@@ -71,6 +75,7 @@
     "timeout": 15000
   },
   "自动雷达雷达界面识别": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "And",
     "all_of": [
       {
@@ -108,6 +113,7 @@
     "on_error": ["自动雷达确认处理完成"]
   },
   "自动雷达点击一键领取": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/one_click_claim_reference.png", "AutoRadar/one_click_claim_runtime.png"],
     "threshold": [0.7, 0.7],
@@ -123,6 +129,7 @@
     "timeout": 10000
   },
   "自动雷达关闭领取弹窗": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/reward_title_reference.png", "AutoRadar/reward_title_runtime.png"],
     "threshold": [0.66, 0.66],
@@ -132,6 +139,7 @@
     "post_delay": 700
   },
   "自动雷达点击一键执行": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/one_click_execute_reference.png", "AutoRadar/one_click_execute_runtime.png"],
     "threshold": [0.7, 0.7],
@@ -147,6 +155,7 @@
     "timeout": 15000
   },
   "自动雷达点击红色事件": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/event_red_reference.png", "AutoRadar/event_red_runtime.png"],
     "threshold": [0.6, 0.6],
@@ -159,6 +168,7 @@
     "next": ["自动雷达等待事件结果"]
   },
   "自动雷达点击黄色事件": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/event_yellow_reference.png", "AutoRadar/event_yellow_runtime.png"],
     "threshold": [0.6, 0.6],
@@ -171,6 +181,7 @@
     "next": ["自动雷达等待事件结果"]
   },
   "自动雷达点击蓝色事件": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/event_blue_reference.png", "AutoRadar/event_blue_runtime.png"],
     "threshold": [0.6, 0.6],
@@ -183,6 +194,7 @@
     "next": ["自动雷达等待事件结果"]
   },
   "自动雷达点击紫色事件": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/event_purple_reference.png", "AutoRadar/event_purple_runtime.png"],
     "threshold": [0.6, 0.6],
@@ -200,6 +212,7 @@
     "timeout": 10000
   },
   "自动雷达点击第一对话选项": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/dialog_first_option_ui_reference.png", "AutoRadar/dialog_first_option_ui_runtime.png"],
     "threshold": [0.68, 0.68],
@@ -219,6 +232,7 @@
     "timeout": 10000
   },
   "自动雷达首次点击继续": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/dialog_continue_reference.png", "AutoRadar/dialog_continue_runtime.png"],
     "threshold": [0.68, 0.68],
@@ -238,6 +252,7 @@
     "timeout": 25000
   },
   "自动雷达继续对话": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/dialog_continue_reference.png", "AutoRadar/dialog_continue_runtime.png"],
     "threshold": [0.68, 0.68],

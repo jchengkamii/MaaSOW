@@ -1,5 +1,6 @@
 {
   "内城主界面左下特征": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": [
       "Common/Scene/inner_city_elder_label_reference.png",
@@ -11,6 +12,7 @@
     "timeout": 1000
   },
   "内城主界面右下特征": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": [
       "Common/Scene/inner_city_world_label_reference.png",

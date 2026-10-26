@@ -209,6 +209,64 @@ class ConfigurationBasicTests(unittest.TestCase):
                     start.assert_not_called()
                     self.assertTrue(any(c.args[1] == '自动治疗返回主城或大世界' for c in run.call_args_list))
 
+    def test_recognition_fallback_is_explicit_and_algorithm_aware(self):
+        from copy import deepcopy
+        from unittest.mock import Mock
+        from agent.recognition_fallback import apply_full_image_fallbacks, with_full_image_fallback
+        template={'type':'TemplateMatch','param':{'roi':[10,20,100,100],
+                  'template':['test.png'],'method':5,'threshold':[0.7,0.98]}}
+        original=deepcopy(template)
+        resource=Mock(node_list=['local','enabled'])
+        resource.get_node_data.side_effect=lambda name:{
+            'recognition':template,
+            'attach':{'full_image_fallback':{'margin':0.08}} if name == 'enabled' else {},
+        }
+        self.assertEqual(1,apply_full_image_fallbacks(resource))
+        overrides=resource.override_pipeline.call_args.args[0]
+        self.assertEqual(['enabled'],list(overrides))
+        wrapped=overrides['enabled']['recognition']
+        full=wrapped['param']['any_of'][1]['recognition']['param']
+        self.assertEqual([0,0,0,0],full['roi'])
+        self.assertAlmostEqual(0.78,full['threshold'][0])
+        self.assertAlmostEqual(0.99,full['threshold'][1])
+        self.assertEqual(original,template)
+        self.assertEqual(wrapped,with_full_image_fallback(wrapped,0.08))
+
+        for method,threshold,expected in ((1,0.1,0.05),(0,100,92),(2,100,108)):
+            with self.subTest(method=method):
+                node=deepcopy(template)
+                node['param'].update(method=method,threshold=threshold)
+                full=with_full_image_fallback(node,0.08)['param']['any_of'][1]['recognition']['param']
+                self.assertAlmostEqual(expected,full['threshold'])
+        feature={'type':'FeatureMatch','param':{'roi':[10,20,100,100],'count':4,'ratio':0.6}}
+        full=with_full_image_fallback(feature,0.08)['param']['any_of'][1]['recognition']['param']
+        self.assertEqual(5,full['count'])
+        self.assertLess(full['ratio'],feature['param']['ratio'])
+        color={'type':'ColorMatch','param':{'roi':[10,20,100,100],'count':100,'connected':False}}
+        self.assertEqual(color,with_full_image_fallback(color,0.08))
+        template['param']['roi']='anchor'
+        self.assertEqual(template,with_full_image_fallback(template,0.08))
+
+    def test_treatment_panel_states_keep_current_frame_title_anchor(self):
+        from unittest.mock import Mock
+        from agent.recognition_fallback import ROI_ONLY_NODES, TREATMENT_PANEL_NODES, apply_full_image_fallbacks
+        nodes=json.loads((PROJECT_DIR/'resource/base/pipeline/AutoTreatment/AutoTreatment.json').read_text(encoding='utf-8'))
+        resource=Mock(node_list=list(ROI_ONLY_NODES))
+        self.assertEqual(0,apply_full_image_fallbacks(resource))
+        resource.get_node_data.assert_not_called()
+        for name in TREATMENT_PANEL_NODES:
+            node=nodes[name]
+            self.assertEqual('And',node['recognition'])
+            self.assertEqual('自动治疗确认治疗界面',node['all_of'][0])
+            self.assertEqual(1,node['box_index'])
+            state=node['all_of'][1]
+            branches=state['any_of'] if state['recognition'] == 'Or' else [state]
+            for branch in branches:
+                self.assertEqual(node['all_of'][0],branch['roi'])
+                self.assertEqual(4,len(branch['roi_offset']))
+                if branch['recognition'] == 'OCR':
+                    self.assertFalse(branch['only_rec'])  # Detect lines in the larger state area.
+
 
 if __name__ == '__main__':
     unittest.main()

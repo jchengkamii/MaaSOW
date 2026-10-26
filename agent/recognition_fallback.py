@@ -1,40 +1,54 @@
-"""ROI-first recognition with a full-image fallback for every loaded task."""
+"""ROI-first recognition with explicitly enabled full-image fallbacks."""
 from __future__ import annotations
 
 from copy import deepcopy
+import math
 
-SEARCH_TYPES = {"TemplateMatch", "FeatureMatch", "ColorMatch", "OCR",
-                "NeuralNetworkClassify", "NeuralNetworkDetect"}
+SEARCH_TYPES = {"TemplateMatch", "FeatureMatch", "ColorMatch", "OCR"}
 LOCAL_NAME = "__MaaSOW_roi_first__"
 FULL_NAME = "__MaaSOW_full_image__"
-# 全图兜底只在匹配分比 ROI 阈值高出该裕量时才接受，避免 ROI 内未命中时，
-# 兜底把画面里相似的无关元素（如弟子行的深色横条）误判成命中。像素相似度
-# 匹配对跨机器的显卡/DPI/色温差异敏感，裕量越大越保守、越不容易误报。
-FULL_IMAGE_MARGIN = 0.08
 TREATMENT_HUD_NODES = {
     "自动治疗点击治疗入口", "自动治疗确认正在治疗图标", "自动治疗收取治疗完成",
     "自动治疗确认疑似治疗图标",
     "自动治疗确认未协助", "自动治疗确认已协助",
-    # 愈灵斋内的状态节点必须固定在自身 ROI 内识别，全图兜底会把弟子行的
-    # 深色横条误判成“治疗进行中”，导致界面一打开就被关闭。
+}
+# 面板状态和 HUD 图标均禁止全图兜底，但面板节点并非绿色遮罩图标。
+TREATMENT_PANEL_NODES = {
     "自动治疗确认治疗进行中", "自动治疗确认仙盟互助",
 }
+ROI_ONLY_NODES = TREATMENT_HUD_NODES | TREATMENT_PANEL_NODES
 
 
 def _inline(recognition: dict, name: str) -> dict:
     return {"sub_name": name, "recognition": recognition}
 
 
-def _raise_threshold(params: dict, margin: float) -> None:
-    """提高 threshold 以收紧匹配；threshold 可为单值或多模板数组。"""
-    threshold = params.get("threshold")
-    if isinstance(threshold, (int, float)):
-        params["threshold"] = round(min(1.0, threshold + margin), 4)
-    elif isinstance(threshold, list):
-        params["threshold"] = [round(min(1.0, t + margin), 4) for t in threshold]
+def _tighten_match(kind: str, params: dict, margin: float) -> None:
+    """Use score deltas for normalized methods, relative changes for raw scores."""
+    if kind == "TemplateMatch":
+        method = params.get("method", 5)
+
+        def tighten(value):
+            if method == 0:  # Raw SQDIFF: lower scores are better.
+                return value * (1.0 - margin)
+            if method == 1:
+                return value - min(margin, value / 2.0)
+            if method in {3, 5, 10001}:  # Normalized higher-is-better scores.
+                return value + min(margin, (1.0 - value) / 2.0)
+            # Unnormalized CCORR/CCOEFF scores are not bounded by 1.
+            return value + abs(value) * margin
+
+        threshold = params["threshold"]
+        params["threshold"] = ([tighten(t) for t in threshold]
+                               if isinstance(threshold, list) else tighten(threshold))
+    elif kind in {"FeatureMatch", "ColorMatch"} and margin:
+        count = params["count"]
+        params["count"] = max(count + 1, math.ceil(count * (1.0 + margin)))
+        if kind == "FeatureMatch":
+            params["ratio"] *= 1.0 - margin
 
 
-def with_full_image_fallback(recognition: dict) -> dict:
+def with_full_image_fallback(recognition: dict, margin: float = 0.0) -> dict:
     """Accept Resource.get_node_data's normalized v2 recognition definition."""
     result = deepcopy(recognition)
     kind = result["type"]
@@ -49,12 +63,18 @@ def with_full_image_fallback(recognition: dict) -> dict:
             return result
         params[key] = [
             child if isinstance(child, str) else _inline(
-                with_full_image_fallback(child.get("recognition", child)),
+                with_full_image_fallback(child.get("recognition", child), margin),
                 child.get("sub_name", child.get("type", "recognition")),
             ) for child in children
         ]
         return result
     if kind not in SEARCH_TYPES:
+        return result
+    # Relative ROIs carry spatial meaning; never discard their anchor or item row.
+    if isinstance(params.get("roi"), str):
+        return result
+    # Summing unrelated colored pixels across the screen is not a valid fallback.
+    if kind == "ColorMatch" and not params.get("connected", False):
         return result
     if params.get("roi", [0, 0, 0, 0]) == [0, 0, 0, 0] and not any(params.get("roi_offset", [0, 0, 0, 0])):
         return result
@@ -64,8 +84,8 @@ def with_full_image_fallback(recognition: dict) -> dict:
     if kind == "OCR":
         # Full-screen text requires detection; only_rec treats the entire image as one line.
         full["param"]["only_rec"] = False
-    elif kind in {"TemplateMatch", "FeatureMatch", "ColorMatch"}:
-        _raise_threshold(full["param"], FULL_IMAGE_MARGIN)
+    else:
+        _tighten_match(kind, full["param"], margin)
     return {"type": "Or", "param": {"any_of": [
         _inline(result, LOCAL_NAME), _inline(full, FULL_NAME),
     ]}}
@@ -76,14 +96,22 @@ def apply_full_image_fallbacks(resource) -> int:
     for name in resource.node_list:
         # Stamina actions depend on the item row. The Fuhu shortcut must stay
         # in the lower-left HUD, away from similar monster faces on the map.
-        # Treatment's three states also depend on the lower-left HUD location.
-        if name.startswith(("通用自动补体", "伏虎降妖定位")) or name in TREATMENT_HUD_NODES:
+        if name.startswith(("通用自动补体", "伏虎降妖定位")) or name in ROI_ONLY_NODES:
             continue
         data = resource.get_node_data(name)
         if data is None:
             raise RuntimeError(f"无法读取识别节点：{name}")
+        policy = data.get("attach", {}).get("full_image_fallback")
+        if policy is None:
+            continue
+        if not isinstance(policy, dict):
+            raise ValueError(f"节点 {name} 的 full_image_fallback 必须是对象")
+        margin = policy.get("margin", 0.0)
+        if (isinstance(margin, bool) or not isinstance(margin, (int, float))
+                or not 0 <= margin < 1):
+            raise ValueError(f"节点 {name} 的全图兜底 margin 必须在 [0, 1) 内")
         original = data["recognition"]
-        replacement = with_full_image_fallback(original)
+        replacement = with_full_image_fallback(original, margin)
         if replacement != original:
             overrides[name] = {"recognition": replacement}
     if overrides and not resource.override_pipeline(overrides):

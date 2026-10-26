@@ -16,6 +16,7 @@
     ]
   },
   "通用识别补充体力按钮": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,

@@ -17,6 +17,7 @@
     "next": ["通用行军进入大地图"]
   },
   "通用行军黄色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/return_yellow_reference.png", "AutoRadar/return_yellow_runtime.png"],
     "threshold": 0.68,
@@ -27,6 +28,7 @@
     "next": ["通用行军进入大地图"]
   },
   "通用行军蓝色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": ["AutoRadar/return_blue_reference.png", "AutoRadar/return_blue_runtime.png"],
     "threshold": 0.68,

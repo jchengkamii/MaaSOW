@@ -1,5 +1,6 @@
 {
   "自动治疗确认治疗界面": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": "AutoTreatment/treatment_title.png",
     "threshold": 0.66,
@@ -29,6 +30,7 @@
     "box_index": 0
   },
   "自动治疗确认大世界": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "And",
     "all_of": [
       "内城主界面左下特征",
@@ -47,6 +49,7 @@
     "box_index": 0
   },
   "自动治疗点击黄色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": [
       "AutoRadar/return_yellow_reference.png",
@@ -70,6 +73,7 @@
     ]
   },
   "自动治疗点击蓝色返回": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": [
       "AutoRadar/return_blue_reference.png",
@@ -196,6 +200,7 @@
     "timeout": 1200
   },
   "自动治疗点击治疗按钮": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
     "recognition": "TemplateMatch",
     "template": "AutoTreatment/treat_button.png",
     "threshold": 0.66,
@@ -229,43 +234,60 @@
     "post_delay": 900
   },
   "自动治疗确认治疗进行中": {
-    "recognition": "Or",
-    "any_of": [
+    "recognition": "And",
+    "all_of": [
+      "自动治疗确认治疗界面",
       {
-        "recognition": "OCR",
-        "roi": [
-          250,
-          1005,
-          310,
-          50
-        ],
-        "expected": "治疗进行中",
-        "only_rec": true,
-        "threshold": 0.2
-      },
+        "recognition": "Or",
+        "any_of": [
+          {
+            "recognition": "OCR",
+            "roi": "自动治疗确认治疗界面",
+            "roi_offset": [
+              -110,
+              775,
+              230,
+              170
+            ],
+            "expected": "治疗进行中",
+            "only_rec": false,
+            "threshold": 0.2
+          },
+          {
+            "recognition": "TemplateMatch",
+            "template": "AutoTreatment/treatment_running.png",
+            "threshold": 0.66,
+            "roi": "自动治疗确认治疗界面",
+            "roi_offset": [
+              -110,
+              775,
+              230,
+              170
+            ]
+          }
+        ]
+      }
+    ],
+    "box_index": 1
+  },
+  "自动治疗确认仙盟互助": {
+    "recognition": "And",
+    "all_of": [
+      "自动治疗确认治疗界面",
       {
         "recognition": "TemplateMatch",
-        "template": "AutoTreatment/treatment_running.png",
+        "template": "AutoTreatment/alliance_help.png",
         "threshold": 0.66,
-        "roi": [
-          210,
-          940,
-          310,
+        "roi": "自动治疗确认治疗界面",
+        "roi_offset": [
+          20,
+          885,
+          260,
           180
         ]
       }
-    ]
-  },
-  "自动治疗确认仙盟互助": {
-    "recognition": "TemplateMatch",
-    "template": "AutoTreatment/alliance_help.png",
-    "threshold": 0.66,
-    "roi": [
-      340,
-      1050,
-      340,
-      190
-    ]
+    ],
+    "box_index": 1
   },
   "自动治疗点击仙盟互助": {
     "recognition": "And",

@@ -4,6 +4,7 @@
         "timeout": 800
     },
     "自动帮助按钮特征": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
         "recognition": "TemplateMatch",
         "template": "AutoHelp/auto_help_button.png",
         "threshold": 0.75,
@@ -15,6 +16,7 @@
         "timeout": 800
     },
     "识别并点击自动帮助按钮": {
+    "attach": {"full_image_fallback": {"margin": 0.08}},
         "recognition": "TemplateMatch",
         "template": "AutoHelp/auto_help_button.png",
         "threshold": 0.75,
