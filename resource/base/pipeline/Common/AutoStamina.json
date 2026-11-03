@@ -4,9 +4,9 @@
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
     "roi": [
-      50,
+      0,
       650,
-      500,
+      720,
       480
     ],
     "action": "Click",
@@ -21,9 +21,9 @@
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
     "roi": [
-      50,
+      0,
       650,
-      500,
+      720,
       480
     ]
   },
@@ -32,9 +32,9 @@
     "template": "Common/AutoStamina/replenish_stamina_button.png",
     "threshold": 0.72,
     "roi": [
-      50,
+      0,
       650,
-      500,
+      720,
       480
     ],
     "action": "Click",

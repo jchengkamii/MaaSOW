@@ -37,6 +37,7 @@ class RallyTracker(MarchTracker):
     fought: bool = False
     missing_after_departure: int = 0
     missing_observations: int = 0
+    last_seen_at: float | None = None
 
     @property
     def ready_for_return_check(self):
@@ -49,6 +50,7 @@ class RallyTracker(MarchTracker):
 
     def observe(self, *, visible, status, reliable, count_decreased=False):
         if reliable and visible:
+            self.last_seen_at = time.monotonic()
             if status == S.ASSEMBLING:
                 self.assembled = True
             if self.assembled and status in (S.OUTBOUND, S.FIGHTING):
@@ -72,7 +74,21 @@ class LingEr(March):
     def target_dispatch_point(self, image):
         h, w = image.shape[:2]
         left, top = int(w*.15), int(h*.45)
-        icons = self.asset(image[top:int(h*.87), left:int(w*.85)], 'rally')
+        crop = image[top:int(h*.87), left:int(w*.85)]
+        icons = self.asset(crop, 'rally')
+        if not icons:
+            # 完整模板四角含地图背景；兜底只匹配圆钮内部，并复核下方文字。
+            result = self.recognize(crop.copy(), JRecognitionType.TemplateMatch,
+                                    JTemplateMatch(template=['AutoLingEr/rally_masked.png'],
+                                                   threshold=[.88], method=5, green_mask=True))
+            icons = result.filtered_results if result.hit else []
+            if len(icons) != 1:
+                return None
+            box = icons[0].box
+            caption = crop[max(0, box.y + box.h - 5):box.y + box.h + 58,
+                           max(0, box.x - 25):box.x + box.w + 25]
+            if len(self.ocr(caption, ['^集结$'])) != 1:
+                return None
         if len(icons) != 1:
             return None
         box = icons[0].box
@@ -88,7 +104,8 @@ class LingEr(March):
         handle = super().dispatch_from_panel(queue, existing=existing, timeout=timeout)
         if handle.tracker.state != S.ASSEMBLING:
             raise RuntimeError('已点击组队，但未确认集结中状态；停止以防重复集结')
-        handle.tracker = RallyTracker(state=S.ASSEMBLING, assembled=True)
+        handle.tracker = RallyTracker(state=S.ASSEMBLING, assembled=True,
+                                      last_seen_at=time.monotonic())
         return handle
 
 
@@ -169,9 +186,11 @@ class LingEr(March):
             raise RuntimeError("未找到底部搜索按钮")
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            if self.target_dispatch_point(self.screenshot()) is not None:
+            image = self.screenshot()
+            if self.target_dispatch_point(image) is not None:
                 return
             self.pause(.3)
+        self.record_panel_failure(image, stage='rally_menu')
         raise RuntimeError('搜索后未唯一确认集结按钮，未集结')
 
     def text_button(self, text, timeout=8):
@@ -230,6 +249,22 @@ class LingEr(March):
             self._next_snapshot_log = time.monotonic() + 10
         return valid, rows, count
 
+    def record_tracking_failure(self, reason):
+        now = time.monotonic()
+        self.engine.log(f'集结异常：{reason}；识别说明={getattr(self, "snapshot_reason", "")}；'
+                        f'状态原文={getattr(self, "snapshot_status_texts", [])}')
+        for q, handle in self.active.items():
+            tracker = handle.tracker
+            last_seen = ('未知' if tracker.last_seen_at is None
+                         else f'{max(0, now - tracker.last_seen_at):.1f} 秒前')
+            self.engine.log(f'第 {q} 队现场：状态={tracker.state}，已出发={tracker.departed}，'
+                            f'已战斗={tracker.fought}，连续消失={tracker.missing_observations}，'
+                            f'最后可靠可见={last_seen}')
+        try:
+            self.record_panel_failure(self.screenshot())
+        except RuntimeError as exc:
+            self.engine.log(f'集结异常截图失败：{exc}')
+
 
 def run(engine, case):
     params = case.parameters or {}
@@ -248,9 +283,12 @@ def run(engine, case):
     return_check_failures = {}
     completed = 0
     cursor = 0
+    batch_attempted = set()
+    batch_draining = False
     idle_deadline = time.monotonic() + 3600
     if not flow.pipeline('通用行军进入大地图'):
-        raise RuntimeError('无法进入大地图')
+        flow.record_tracking_failure('启动时未能确认大地图默认界面')
+        raise RuntimeError('启动时未能确认大地图默认界面；请查看现场截图和识别日志')
     unreliable_since = None
     while completed < count:
         valid, _, _ = flow.snapshot()
@@ -259,20 +297,21 @@ def run(engine, case):
             if unreliable_since is None:
                 unreliable_since = now
             elif now - unreliable_since >= 30:
+                flow.record_tracking_failure('连续 30 秒无法可靠识别小队列表')
                 raise RuntimeError(f'连续 30 秒无法可靠识别小队列表；已完成 {completed}/{count} 次；'
                                    f'识别说明：{flow.snapshot_reason}。请回到大地图后重试')
             flow.pause(.5)
             continue
         unreliable_since = None
+        # 每批每个勾选队列最多尝试一次；任一队开始行军或消失后，保持小队列表可见，等待整批结束。
+        if any(h.tracker.state != S.ASSEMBLING or h.tracker.departed
+               or h.tracker.missing_observations for h in flow.active.values()):
+            batch_draining = True
         # Keep the HUD visible while any tracked squad is still active. Opening
         # search/panels repeatedly can hide another squad's brief combat phase.
         can_inspect_returns = all(h.tracker.state == S.COMPLETED or h.tracker.missing_observations >= 3
                                   for h in flow.active.values())
         for q, handle in list(flow.active.items()):
-            if (handle.tracker.missing_observations >= 30 and not handle.tracker.departed
-                    and handle.tracker.state != S.RETURNING and handle.tracker.state != S.COMPLETED):
-                raise RuntimeError(f'第 {q} 队已连续消失 30 次，但未确认出发或返回；'
-                                   '可能集结取消或状态识别异常，停止以避免长期空等和错误计数')
             if (handle.tracker.state != S.COMPLETED and handle.tracker.ready_for_return_check
                     and can_inspect_returns
                     and time.monotonic() >= next_return_check.get(q, 0)):
@@ -283,6 +322,7 @@ def run(engine, case):
                 else:
                     return_check_failures[q] = return_check_failures.get(q, 0) + 1
                     if return_check_failures[q] >= 3:
+                        flow.record_tracking_failure(f'第 {q} 队连续三次返回复核失败')
                         raise RuntimeError(f'第 {q} 队连续三次返回复核失败，停止重复开面板；请查看队号、占用和头像诊断')
             if handle.tracker.state == S.COMPLETED:
                 completed += 1
@@ -293,20 +333,40 @@ def run(engine, case):
                 idle_deadline = time.monotonic() + 3600
                 engine.log(f'第 {q} 队集结完成；总进度 {completed}/{count}（已确认返回空闲）')
             elif time.monotonic() >= deadlines[q]:
+                flow.record_tracking_failure(f'第 {q} 队集结等待超时')
                 raise TimeoutError(f'第 {q} 队集结等待超时；已完成 {completed}/{count} 次')
+        # 先累计已确认完成的队伍，再报告状态不确定的队伍。
+        for q, handle in flow.active.items():
+            if (handle.tracker.missing_observations >= 30 and not handle.tracker.departed
+                    and handle.tracker.state not in (S.RETURNING, S.COMPLETED)
+                    and can_inspect_returns):
+                reason = f'第 {q} 队已连续消失 30 次，但未确认出发或返回'
+                flow.record_tracking_failure(reason)
+                idle = flow.confirm_idle_in_panel(handle, select_target=flow.locate)
+                detail = ('面板已连续确认原队列头像一致且空闲，但无法区分集结取消与行军漏采'
+                          if idle else '面板未能连续确认原队列头像一致且空闲')
+                raise RuntimeError(f'{reason}；{detail}；本次未计数、未重复组队；'
+                                   f'已完成 {completed}/{count} 次，请查看现场截图和队列诊断')
         if completed >= count:
             if flow.return_panel_open:
                 flow.close_dispatch_panel()
                 flow.return_panel_open = False
             break
         if time.monotonic() >= idle_deadline:
+            flow.record_tracking_failure('等待勾选队列可用或集结完成超时')
             raise TimeoutError('等待勾选队列可用或集结完成超时')
+        if not flow.active:
+            batch_attempted.clear()
+            batch_draining = False
         # Each in-flight rally reserves one of the remaining total attempts.
         # Round-robin prevents the lowest queue number from monopolizing work.
         candidates = [queues[(cursor + offset) % len(queues)] for offset in range(len(queues))]
-        queue = next((q for q in candidates if q not in flow.active and q not in flow.blocked), None)
+        queue = next((q for q in candidates if q not in batch_attempted
+                      and q not in flow.active and q not in flow.blocked), None)
         pending_return = any(h.tracker.ready_for_return_check for h in flow.active.values())
-        if completed + len(flow.active) < count and queue is not None and not pending_return:
+        if (completed + len(flow.active) < count and queue is not None
+                and not batch_draining and not pending_return):
+            batch_attempted.add(queue)
             cursor = (queues.index(queue) + 1) % len(queues)
             try:
                 if flow.return_panel_open:

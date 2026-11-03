@@ -369,9 +369,20 @@ class March(DispatchPanel):
                                       [r"[0-4][/／][1-4]"], only_rec=only_rec)
                     if len(counts) == 1:
                         break
+        counts = [result for result in counts
+                  if re.fullmatch(r'[0-4][/／][1-4]', result.text.strip())]
+        if len(counts) != 1:
+            # 窄图可能把斜线漏掉而读成 214；宽区域检测保留上下文，只接受标题同行右侧的分数。
+            candidates = self.ocr(header_region, [r'^[0-4][/／][1-4]$'])
+            counts = [result for result in candidates
+                      if int(w * .27) <= result.box.x
+                      and result.box.x + result.box.w <= xend
+                      and title.y <= result.box.y + result.box.h / 2 <= title.y + title.h]
+            if len(counts) == 1:
+                self.snapshot_reason = '已在小队标题同行的宽区域确认占用数'
         count = None
         if len(counts) == 1:
-            match = re.search(r"([0-4])[/／]([1-4])", counts[0].text)
+            match = re.fullmatch(r"([0-4])[/／]([1-4])", counts[0].text.strip())
             if match:
                 used, maximum = map(int, match.groups())
                 if used <= maximum:
@@ -383,38 +394,48 @@ class March(DispatchPanel):
         complete = count is not None and len(anchors) == count
         if count is not None and not complete:
             self.snapshot_reason = f"小队占用数 {count} 与已识别状态行 {len(anchors)} 不符"
-        # During a short march the action icon can disappear or change artwork.
-        # Reuse only a previously confirmed layout with the same row count and
-        # screenshot size; every cached row still needs its original portrait
-        # and a readable status. Count alone never establishes a row or return.
-        cached_shape, cached_rows = getattr(self, '_snapshot_row_cache', (None, []))
-        if (count is not None and 0 < count <= 4 and not anchors
-                and cached_shape == image.shape[:2] and len(cached_rows) == count):
-            recovered = [self.read_squad_row(image, 0, box) for box, _ in cached_rows]
-            if all(row is not None and row.status is not None and similarity(row.avatar, old_avatar) >= .80
-                   for (row, _), (_, old_avatar) in zip(recovered, cached_rows)):
-                self.snapshot_rows_reliable = True
-                self.snapshot_status_texts = [texts for _, texts in recovered]
-                self.snapshot_reason = '状态图标漏检；已按原位置、头像和状态文字复核'
-                return True, [row for row, _ in recovered], count
-            if time.monotonic() >= getattr(self, '_next_row_recovery_log', 0):
-                scores = [round(similarity(row.avatar, old), 3) if row is not None else None
-                          for (row, _), (_, old) in zip(recovered, cached_rows)]
-                self.engine.log(f'状态行位置复核未通过：头像相似度={scores}，'
-                                f'状态原文={[texts for _, texts in recovered]}')
-                self._next_row_recovery_log = time.monotonic() + 10
-        rows = []
+        located = []
         for anchor in anchors:
             row, texts = self.read_squad_row(image, start, anchor.box)
             if row is None:
                 self.snapshot_reason = '小队状态行位置无效，等待下一帧'
                 return False, [], count or 0
-            self.snapshot_status_texts.append(texts)
-            rows.append(row)
+            box = Rect(anchor.box.x, start + anchor.box.y, anchor.box.w, anchor.box.h)
+            located.append((box, row, texts))
+        # 图标部分漏检时，逐行复核已确认的位置、头像和状态；采集状态同样是有效的可见证据。
+        cached_shape, cached_rows = getattr(self, '_snapshot_row_cache', (None, []))
+        if (count is not None and 0 < count <= 4 and len(located) < count
+                and cached_shape == image.shape[:2] and len(cached_rows) == count):
+            diagnostics = []
+            recovered = 0
+            for box, old_avatar in cached_rows:
+                if any(abs(box.x - current.x) < 15 and abs(box.y - current.y) < 15
+                       for current, _, _ in located):
+                    continue
+                row, texts = self.read_squad_row(image, 0, box)
+                score = similarity(row.avatar, old_avatar) if row is not None else 0
+                duplicate = row is not None and any(similarity(row.avatar, other.avatar) >= .72
+                                                    for _, other, _ in located)
+                diagnostics.append((round(score, 3), texts, duplicate))
+                readable = row is not None and (row.status is not None
+                                               or any(text.strip() == '采集中' for text in texts))
+                if readable and score >= .80 and not duplicate:
+                    located.append((box, row, texts))
+                    recovered += 1
+            complete = len(located) == count
+            if recovered:
+                self.snapshot_reason = ('状态图标漏检；已按原位置、头像和状态文字复核'
+                                        if complete else '已恢复部分队列状态，完整列表仍未确认')
+            if not complete and time.monotonic() >= getattr(self, '_next_row_recovery_log', 0):
+                self.engine.log(f'状态行位置复核未通过：头像相似度、状态原文、头像重复={diagnostics}')
+                self.record_panel_failure(image, stage='row_recovery')
+                self._next_row_recovery_log = time.monotonic() + 10
+        located.sort(key=lambda item: item[0].y)
+        rows = [row for _, row, _ in located]
+        self.snapshot_status_texts = [texts for _, _, texts in located]
         if complete:
             self._snapshot_row_cache = (image.shape[:2],
-                                        [(Rect(anchor.box.x, start + anchor.box.y, anchor.box.w, anchor.box.h), row.avatar.copy())
-                                         for anchor, row in zip(anchors, rows)])
+                                        [(box, row.avatar.copy()) for box, row, _ in located])
         # A collapsed list cannot provide the row anchors for a nonzero count.
         self.snapshot_rows_reliable = 0 < len(rows) <= 4
         return complete, rows, count if count is not None else len(rows)
@@ -456,6 +477,7 @@ class March(DispatchPanel):
                                       len(target) != 2 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in target)):
             raise ValueError("调用方必须提供目标坐标或 select_target 回调")
         if not self.pipeline("通用行军进入大地图"):
+            self.record_panel_failure(self.screenshot())
             raise RuntimeError("无法进入大地图")
         existing = self.pre_dispatch_rows()
         if select_target is not None:
@@ -512,10 +534,12 @@ class March(DispatchPanel):
             raise ZeroDisciples("弟子数量为 0，等待队伍返回")
         handle = MarchHandle(desired, selected_avatar, MarchTracker(), panel_avatar=selected_avatar.copy())
         self.pending_handle = handle
-        self.pending_dispatch = True
+        # text_button 点击前仍会检查数量；检查失败时，不能将未提交的队伍作为未知出征进行复核。
+        self.pending_dispatch = False
         if not self.text_button("出征"):
             self.pending_dispatch = False
             raise RuntimeError("未找到出征按钮")
+        self.pending_dispatch = True
         deadline = time.monotonic() + timeout
         previous_added = None
         added_confirmations = 0

@@ -136,7 +136,20 @@ class DispatchPanel:
         return []
 
     def zero_disciples(self):
-        image = self.screenshot()
+        # 盟友协助提示可能只遮住标题；等待标题和数量都能确认的新画面，避免采信地图中的其他分数。
+        for attempt in range(8):
+            image = self.screenshot()
+            try:
+                return self.disciple_count(image) == 0
+            except RuntimeError as exc:
+                if attempt == 7:
+                    self.record_panel_failure(image)
+                    raise
+                if attempt == 0:
+                    self.engine.log(f'弟子数量暂未确认：{exc}；等待遮挡消失后重新读取，不点击出征')
+                self.pause(.5)
+
+    def disciple_count(self, image):
         h, w = image.shape[:2]
         top = int(h * .30)
         results = self.ocr(image[top:int(h * .65)])
@@ -171,7 +184,10 @@ class DispatchPanel:
         match = re.fullmatch(r"(\d+)[/／](\d+)", values[0])
         if match is None:
             raise RuntimeError("弟子数量格式无法确认，未点击出征")
-        return int(match[1]) == 0
+        current, maximum = map(int, match.groups())
+        if maximum <= 0 or current > maximum:
+            raise RuntimeError('弟子数量数值超出范围，未点击出征')
+        return current
 
     def dispatch_panel_visible(self, image):
         # Recovery-only evidence: never infer the selected squad or dispatch
@@ -402,16 +418,16 @@ class DispatchPanel:
                 raise RuntimeError("补体后未确认出征面板，且无法返回大世界") from exc
             raise RelocateAfterStamina("进攻阶段已补体，面板已关闭，重新定位目标") from exc
 
-    def record_panel_failure(self, image):
+    def record_panel_failure(self, image, *, stage='panel'):
         # Preserve the exact failed frame, not a later screenshot after recovery.
         from pathlib import Path
         from PIL import Image
         try:
             folder = Path(__file__).resolve().parents[4] / 'debug'
             folder.mkdir(parents=True, exist_ok=True)
-            path = folder / f'{getattr(self, 'diagnostic_name', 'march')}_panel_failure.png'
+            path = folder / f'{getattr(self, 'diagnostic_name', 'march')}_{stage}_failure.png'
             Image.fromarray(image[:, :, ::-1]).save(path)
-            self.engine.log(f"出征面板识别失败原图已保存：{path}，尺寸 {image.shape[1]}x{image.shape[0]}")
+            self.engine.log(f"识别失败原图已保存：{path}，尺寸 {image.shape[1]}x{image.shape[0]}")
         except Exception as exc:
             self.engine.log(f"保存面板诊断截图失败：{exc}")
 

@@ -8,7 +8,7 @@ import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
 from agent.custom.action.march.state import MarchState as S, MarchTracker, parse_status
 from agent.custom.action.auto_pixiu import Pixiu
-from agent.custom.action.auto_ling_er import LingEr, RallyTracker
+from agent.custom.action.auto_ling_er import LingEr, RallyTracker, run as run_ling_er
 from agent.custom.action.auto_fu_hu import FuHu, FuHuFinished, run as run_fu_hu
 
 
@@ -26,6 +26,9 @@ class MarchBasicTests(unittest.TestCase):
             with Image.open(root / 'debug/march_panel_failure.png') as saved:
                 self.assertEqual((3, 2), saved.size)
                 self.assertEqual((30, 20, 10), saved.getpixel((0, 0)))
+            with patch('agent.custom.action.march.dispatch_panel.__file__', str(source)):
+                March.record_panel_failure(flow,image,stage='row_recovery')
+            self.assertTrue((root/'debug/march_row_recovery_failure.png').is_file())
 
     def flow(self, kind):
         f=kind.__new__(kind)
@@ -145,6 +148,55 @@ class MarchBasicTests(unittest.TestCase):
             self.assertTrue(f.reconcile_pending_dispatch())
             self.assertEqual(3,f.snapshot.call_count)
 
+        # 最后一次数量检查在 text_button 点击前执行；检查失败时不得恢复并不存在的出征。
+        for kind in (March,Pixiu,LingEr,FuHu):
+            f=self.flow(kind)
+            avatar=np.random.default_rng(102).random((24,24,3))
+            panel=(1,[(True,(0,0),avatar)])
+            f.allowed_queues=[1];f.panel_busy=[False]
+            f.ready_dispatch_panel=Mock(return_value=panel)
+            f.panel=Mock(return_value=panel)
+            f.zero_disciples=Mock(return_value=False)
+            f.text_button=Mock(side_effect=[False,RuntimeError('数量标题仍被遮挡')])
+            f.recover_world=Mock();f.reconcile_pending_dispatch=Mock()
+            with self.assertRaisesRegex(RuntimeError,'数量标题仍被遮挡'):
+                f.dispatch_from_panel(queue=1,existing=[])
+            self.assertFalse(f.pending_dispatch)
+            f.click.assert_not_called()
+            f.recover_world.assert_not_called();f.reconcile_pending_dispatch.assert_not_called()
+
+    def test_disciple_quantity_waits_for_clear_title_and_preserves_zero_guard(self):
+        from maa.define import Rect
+        from agent.custom.action.march.dispatch_panel import ZeroDisciples
+        # 回放 16:47:00 的失败画面：数量可读但标题被协助提示遮挡，仅有分数不能确认弟子数量。
+        obstructed=[SimpleNamespace(text='长夏为您治疗伤兵提供了加速帮助！',box=Rect(156,2,349,20)),
+                    SimpleNamespace(text='?',box=Rect(253,54,26,26)),
+                    SimpleNamespace(text='1846/1846',box=Rect(411,59,116,23))]
+        label=SimpleNamespace(text='弟子数量',box=Rect(409,20,106,25))
+        button=SimpleNamespace(text='组队',box=Rect(417,278,89,46))
+        for quantity in (1846,0):
+            with self.subTest(quantity=quantity):
+                f=self.flow(LingEr)
+                clear=[label,SimpleNamespace(text=f'{quantity}/1846',box=Rect(411,59,116,23))]
+                f.ocr=Mock(side_effect=[obstructed,clear,[button]])
+                if quantity:
+                    self.assertTrue(March.text_button(f,'组队'))
+                    f.click.assert_called_once()
+                    self.assertTrue(f.pending_dispatch)
+                else:
+                    with self.assertRaises(ZeroDisciples):
+                        March.text_button(f,'组队')
+                    f.click.assert_not_called()
+                self.assertEqual(.5,f.pause.call_args_list[0].args[0])
+                f.record_panel_failure.assert_not_called()
+
+        f=self.flow(LingEr);f.ocr=Mock(return_value=obstructed)
+        with self.assertRaisesRegex(RuntimeError,'无法确认出征面板弟子数量'):
+            March.text_button(f,'组队')
+        self.assertEqual(8,f.ocr.call_count)
+        f.click.assert_not_called()
+        f.record_panel_failure.assert_called_once_with(f.screenshot.return_value)
+
     def test_only_selected_idle_queue_is_dispatched(self):
         f=self.flow(Pixiu)
         avatars=np.random.default_rng(42).random((4,24,24,3))
@@ -237,6 +289,86 @@ class MarchBasicTests(unittest.TestCase):
         f.open_target_panel.assert_called_once_with()
         f.text_button.assert_not_called();f.close_dispatch_panel.assert_not_called()
 
+    def test_rally_recovers_one_missing_icon_among_gathering_squads(self):
+        from maa.define import Rect
+        f=self.flow(LingEr)
+        avatars=np.random.default_rng(33).random((4,24,24,3))
+        current=list(avatars)
+        states=[S.ASSEMBLING,None,None,S.ASSEMBLING]
+        gathering_readable=[False]
+        header=SimpleNamespace(box=Rect(56,60,48,30))
+        # 回放 17:07:08 的布局：占用数为 4/4，第一队图标消失，采集队和另一集结队仍可见。
+        anchors=[SimpleNamespace(box=Rect(x,y,31,31)) for x,y in
+                 ((222,16),(221,76),(221,137),(222,199))]
+        origin=int(f.screenshot.return_value.shape[0]*.18)+60+30
+        def read(image,start,box):
+            index=min(range(4),key=lambda i:abs(start+box.y-origin-anchors[i].box.y))
+            self.assertEqual(origin+anchors[index].box.y,start+box.y)
+            texts=(['采集中'] if gathering_readable[0] and index in (1,2)
+                   else [str(states[index])])
+            return SquadRow(current[index],states[index]),texts
+        f.templates=Mock(return_value=[header]);f.row_anchors=Mock(return_value=anchors)
+        f.ocr=Mock(return_value=[SimpleNamespace(text='4/4')])
+        f.read_squad_row=Mock(side_effect=read)
+        handle=MarchHandle(1,avatars[0],RallyTracker(state=S.ASSEMBLING,assembled=True))
+        f.active={1:handle}
+        self.assertTrue(f.snapshot()[0])
+        # 同时漏掉采集图标且文字尚未确认时，只采信已恢复的行军状态。
+        f.row_anchors.return_value=anchors[2:]
+        states[0]=S.OUTBOUND
+        valid,rows,count=f.snapshot()
+        self.assertFalse(valid);self.assertEqual(4,count)
+        self.assertEqual(S.OUTBOUND,handle.tracker.state)
+        self.assertTrue(handle.tracker.departed)
+        # 采集文字和原头像均确认后，才补齐该行；采集行本身不推进集结状态。
+        gathering_readable[0]=True
+        self.assertTrue(f.snapshot()[0])
+        self.assertEqual(S.OUTBOUND,handle.tracker.state)
+        f.row_anchors.return_value=anchors[1:]
+        for status in (S.OUTBOUND,S.FIGHTING,S.RETURNING):
+            states[0]=status
+            valid,rows,count=f.snapshot()
+            self.assertTrue(valid);self.assertEqual(4,count)
+            self.assertEqual(status,rows[0].status)
+            self.assertEqual(status,handle.tracker.state)
+        self.assertTrue(handle.tracker.departed);self.assertTrue(handle.tracker.fought)
+
+        # 不能仅凭缓存位置恢复状态或头像未确认的队伍。
+        for status,avatar in ((None,avatars[0]),(S.RETURNING,avatars[1])):
+            states[0]=status;current[0]=avatar
+            self.assertFalse(f.snapshot()[0])
+            self.assertEqual(S.RETURNING,handle.tracker.state)
+            self.assertEqual(0,handle.tracker.missing)
+        f.record_panel_failure.assert_called_with(f.screenshot.return_value,stage='row_recovery')
+        for _ in range(3):
+            f.observe_active(True,[SquadRow(avatars[i],states[i]) for i in (1,2,3)])
+        self.assertEqual(S.COMPLETED,handle.tracker.state)
+
+    def test_squad_count_wide_read_requires_the_header_line(self):
+        from maa.define import Rect
+        header=SimpleNamespace(box=Rect(56,60,48,30))
+        avatars=np.random.default_rng(34).random((2,24,24,3))
+        cases=(([(221,65,34,20)],True), ([(221,200,34,20)],False),
+               ([(100,65,34,20)],False), ([(205,65,20,20),(235,65,20,20)],False))
+        for boxes,expected in cases:
+            with self.subTest(boxes=boxes):
+                f=self.flow(March);f.templates=Mock(return_value=[header])
+                f.row_anchors=Mock(return_value=[SimpleNamespace(box=Rect(225,y,31,31))
+                                                 for y in (14,76)])
+                f.read_squad_row=Mock(side_effect=[(SquadRow(a,None),['采集中']) for a in avatars])
+                def ocr(crop,expected=None,only_rec=False):
+                    if crop.shape[0]>100:
+                        return [SimpleNamespace(text='2/4',box=Rect(*box)) for box in boxes]
+                    # 回放实际失败：窄区域把 2/4 错读成 214，不能据此猜测数量。
+                    return [SimpleNamespace(text='214')]
+                f.ocr=Mock(side_effect=ocr)
+                valid,rows,count=f.snapshot()
+                self.assertEqual(expected,valid)
+                self.assertEqual(2,len(rows))
+                if expected:
+                    self.assertEqual(2,count)
+                    self.assertIn('宽区域',f.snapshot_reason)
+
     def test_rally_uses_level_controls_and_button_without_monster_name(self):
         f=LingEr.__new__(LingEr);f.engine=Mock();f.level=8
         f.screenshot=Mock(return_value=np.zeros((1326,720,3),dtype=np.uint8))
@@ -249,7 +381,23 @@ class MarchBasicTests(unittest.TestCase):
         self.assertIsNotNone(f.target_dispatch_point(f.screenshot()))
         f.ocr.assert_not_called()
         f.asset.return_value=[]
+        f.recognize=Mock(return_value=SimpleNamespace(hit=False,filtered_results=[]))
         self.assertIsNone(f.target_dispatch_point(f.screenshot()))
+
+        # 地图背景干扰完整图标时，遮罩图标和“集结”文字均通过才能继续。
+        f.recognize.return_value=SimpleNamespace(hit=True,filtered_results=[icon])
+        f.ocr.return_value=[SimpleNamespace(text='集结')]
+        f.click=Mock();f.pause=Mock()
+        self.assertTrue(f.open_target_panel())
+        f.click.assert_called_once()
+        self.assertEqual(4,f.recognize.call_count)
+        f.click.reset_mock();f.ocr.return_value=[]
+        with patch('agent.custom.action.march.dispatch_panel.time.monotonic',side_effect=[0,0,9]):
+            self.assertFalse(f.open_target_panel())
+        f.click.assert_not_called()
+        f.recognize.return_value=SimpleNamespace(hit=True,filtered_results=[icon,icon])
+        self.assertIsNone(f.target_dispatch_point(f.screenshot()))
+
         with self.assertRaisesRegex(RuntimeError,'加减按钮'):
             f.search_level()
 
@@ -261,6 +409,85 @@ class MarchBasicTests(unittest.TestCase):
         f.open_world_search.assert_called_once_with()
         f.pause.assert_called_once_with(.3)
         f.adjust_level.assert_called_once_with(8)
+
+    def test_rally_waits_for_the_whole_batch_before_refilling(self):
+        f=self.flow(LingEr);f.pipeline.return_value=True
+        a,b=np.random.default_rng(31).random((2,24,24,3))
+        handles=[MarchHandle(q,avatar,RallyTracker(state=S.ASSEMBLING,assembled=True),
+                             panel_avatar=avatar.copy()) for q,avatar in ((1,a),(4,b),(1,a))]
+        # 复现第一队完成而第四队仍在集结；此时打开搜索补派第一队会遮住第四队的短途行军和返回。
+        frames=iter([
+            [],[SquadRow(a,S.ASSEMBLING)],
+            [SquadRow(a,S.OUTBOUND),SquadRow(b,S.ASSEMBLING)],
+            [SquadRow(a,S.RETURNING),SquadRow(b,S.ASSEMBLING)],
+            *[[SquadRow(b,S.ASSEMBLING)]]*3,
+            [SquadRow(b,S.OUTBOUND)],[SquadRow(b,S.RETURNING)],[],[],[],
+            [SquadRow(a,S.OUTBOUND)],[SquadRow(a,S.RETURNING)],[],[],[]])
+        def snapshot():
+            rows=next(frames)
+            f.observe_active(True,rows)
+            return True,rows,len(rows)
+        f.snapshot=Mock(side_effect=snapshot)
+        f.confirm_returned_in_panel=Mock()
+        def dispatch(*args,**kwargs):
+            index=f.dispatch.call_count-1
+            if index == 2:
+                self.assertTrue(all(h.tracker.state == S.COMPLETED for h in handles[:2]))
+            self.assertEqual(handles[index].queue,kwargs['queue'])
+            return handles[index]
+        f.dispatch=Mock(side_effect=dispatch)
+        case=SimpleNamespace(parameters={'rally_count':3,'rally_queues':[1,4]})
+        with patch('agent.custom.action.auto_ling_er.LingEr',return_value=f):
+            self.assertIn('已完成 3 次',run_ling_er(f.engine,case))
+        self.assertEqual([1,4,1],[c.kwargs['queue'] for c in f.dispatch.call_args_list])
+        self.assertTrue(all(h.tracker.state == S.COMPLETED for h in handles))
+        f.confirm_returned_in_panel.assert_not_called()
+        f.record_panel_failure.assert_not_called()
+
+        # 入口识别失败时保存现场，不能搜索或出征。
+        f=self.flow(LingEr);f.dispatch=Mock();f.locate=Mock();f.snapshot=Mock()
+        with patch('agent.custom.action.auto_ling_er.LingEr',return_value=f):
+            with self.assertRaisesRegex(RuntimeError,'启动时未能确认大地图默认界面'):
+                run_ling_er(f.engine,case)
+        f.record_panel_failure.assert_called_once_with(f.screenshot.return_value)
+        f.snapshot.assert_not_called();f.locate.assert_not_called();f.dispatch.assert_not_called()
+
+    def test_rally_missing_without_departure_is_inspected_but_never_counted(self):
+        for idle in (True,False):
+            with self.subTest(idle=idle):
+                f=self.flow(LingEr);f.pipeline.return_value=True
+                a,b=np.random.default_rng(32).random((2,24,24,3))
+                handles=[MarchHandle(q,avatar,RallyTracker(state=S.ASSEMBLING,assembled=True),
+                                     panel_avatar=avatar.copy()) for q,avatar in ((1,a),(4,b))]
+                frames=iter([[],[SquadRow(a,S.ASSEMBLING)],
+                             *[[SquadRow(b,S.ASSEMBLING)]]*30,
+                             [SquadRow(b,S.OUTBOUND)],[SquadRow(b,S.RETURNING)],[],[],[]])
+                def snapshot():
+                    rows=next(frames)
+                    f.observe_active(True,rows)
+                    return True,rows,len(rows)
+                f.snapshot=Mock(side_effect=snapshot)
+                f.dispatch=Mock(side_effect=handles)
+                def inspect(handle,**kwargs):
+                    self.assertIs(handles[0],handle)
+                    # 第四队仍在执行时，不能用面板遮住小队列表。
+                    self.assertEqual(S.COMPLETED,handles[1].tracker.state)
+                    self.assertFalse(handles[0].tracker.ready_for_return_check)
+                    return idle
+                f.confirm_idle_in_panel=Mock(side_effect=inspect)
+                f.confirm_returned_in_panel=Mock()
+                case=SimpleNamespace(parameters={'rally_count':3,'rally_queues':[1,4]})
+                with patch('agent.custom.action.auto_ling_er.LingEr',return_value=f):
+                    with self.assertRaisesRegex(RuntimeError,'本次未计数、未重复组队') as caught:
+                        run_ling_er(f.engine,case)
+                self.assertIn('无法区分集结取消与行军漏采' if idle else '未能连续确认',str(caught.exception))
+                self.assertIn('已完成 1/3 次',str(caught.exception))
+                self.assertEqual(S.ASSEMBLING,handles[0].tracker.state)
+                self.assertEqual(2,f.dispatch.call_count)
+                f.confirm_idle_in_panel.assert_called_once_with(handles[0],select_target=f.locate)
+                f.confirm_returned_in_panel.assert_not_called()
+                f.record_panel_failure.assert_called_once_with(f.screenshot.return_value)
+                self.assertTrue(any('最后可靠可见=' in c.args[0] for c in f.engine.log.call_args_list))
 
     def test_fu_hu_rotates_on_its_own_returning_state(self):
         f=self.flow(FuHu)

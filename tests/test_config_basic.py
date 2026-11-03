@@ -67,6 +67,13 @@ class ConfigurationBasicTests(unittest.TestCase):
     def test_stamina_checks_all_sources_and_keeps_actions_on_item_row(self):
         import re
         nodes=json.loads((PROJECT_DIR/'resource/base/pipeline/Common/AutoStamina.json').read_text(encoding='utf-8'))
+        # 第四队面板向右展开时，补体按钮实际范围为 (319, 923, 275, 94)，不能裁掉右侧。
+        for entry in ('通用自动补体','通用识别补充体力按钮','通用自动补体点击补充体力'):
+            x,y,width,height=nodes[entry]['roi']
+            self.assertLessEqual(x,319,entry)
+            self.assertLessEqual(y,923,entry)
+            self.assertGreaterEqual(x+width,319+275,entry)
+            self.assertGreaterEqual(y+height,923+94,entry)
         after_scroll=nodes['通用自动补体向下查找100体力']['next']
         self.assertEqual([f'通用自动补体向下后查找{n}体力' for n in (10,50,100)],after_scroll[:-1])
         for prefix in ('通用自动补体','通用自动补体向下后'):

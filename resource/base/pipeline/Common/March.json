@@ -5,7 +5,20 @@
   },
   "通用行军确认大地图": {
     "recognition": "And",
-    "all_of": ["自动治疗确认大世界"]
+    "all_of": [
+      {
+        "recognition": "TemplateMatch",
+        "template": "Common/March/search_symbol.png",
+        "threshold": 0.85,
+        "roi": [0, -420, 160, 300]
+      },
+      {
+        "recognition": "TemplateMatch",
+        "template": "AutoRadar/return_sect_runtime.png",
+        "threshold": 0.68,
+        "roi": [560, -100, 160, 100]
+      }
+    ]
   },
   "通用行军内城转大地图": {
     "recognition": "And",
