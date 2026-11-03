@@ -136,7 +136,7 @@ class DispatchPanel:
         return []
 
     def zero_disciples(self):
-        # 盟友协助提示可能只遮住标题；等待标题和数量都能确认的新画面，避免采信地图中的其他分数。
+        # 人数栏短暂不可读时只重新截图，不触发出征或采信地图中的其他分数。
         for attempt in range(8):
             image = self.screenshot()
             try:
@@ -146,25 +146,27 @@ class DispatchPanel:
                     self.record_panel_failure(image)
                     raise
                 if attempt == 0:
-                    self.engine.log(f'弟子数量暂未确认：{exc}；等待遮挡消失后重新读取，不点击出征')
+                    self.engine.log(f'出征人数暂未确认：{exc}；等待画面稳定后重新读取，不点击出征')
                 self.pause(.5)
 
     def disciple_count(self, image):
         h, w = image.shape[:2]
         top = int(h * .30)
-        results = self.ocr(image[top:int(h * .65)])
-        labels = [result for result in results if result.text.strip() == "弟子数量"]
-        if len(labels) != 1:
-            raise RuntimeError("无法确认出征面板弟子数量，未点击出征")
-        box = labels[0].box
-        # Read title and fraction from one sufficiently tall crop; narrow strips
-        # can make the OCR detector miss white outlined digits.
+        icons = self.templates(image[top:int(h * .65)], 'disciple_count_icon', .85)
+        if len(icons) != 1:
+            raise RuntimeError("无法唯一确认出征面板人数栏，未点击出征")
+        box = icons[0].box
+        scale = w / 720
+        left = box.x + box.w
+        y0 = max(0, top + box.y - round(8 * scale))
+        y1 = min(h, top + box.y + box.h + round(8 * scale))
+        # 人数栏左侧圆形图标定位同帧数值，标题是否被横幅遮挡不影响读取。
+        results = self.ocr(image[y0:y1, left:min(w, left + round(340 * scale))])
+        center_y = top + box.y + box.h / 2 - y0
         fragments = [result for result in results
                   if re.fullmatch(r"[\d\s/／]+", result.text.strip())
-                  and box.y + box.h <= result.box.y <= box.y + box.h + 75 * w / 720
-                  and abs(result.box.x + result.box.w / 2 - box.x - box.w / 2) < w * .2]
-        # OCR can split 141/1047 into overlapping boxes "141" and "/1047".
-        # Only join nearby fragments on the same line below the quantity title.
+                  and abs(result.box.y + result.box.h / 2 - center_y) <= 16 * scale]
+        # OCR 可能将分数拆成相邻片段；只拼接人数条同一行中距离接近的片段。
         groups = []
         for result in sorted(fragments, key=lambda item: item.box.x):
             for group in groups:

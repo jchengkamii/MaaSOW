@@ -28,7 +28,8 @@
     "agent/custom/action/march/dispatch_panel.py",
     "resource/base/pipeline/Common/AutoStamina.json",
     "resource/base/pipeline/Common/March.json",
-    "resource/base/image/AutoLingEr/rally_masked.png"
+    "resource/base/image/AutoLingEr/rally_masked.png",
+    "resource/base/image/Common/March/disciple_count_icon.png"
   ],
   "shared_sha256": {
     "agent/main.py": "577ff3d883cc368f2fc9dff096eaf5fc949f873311c1cb4d121c538531849561",
@@ -46,9 +47,9 @@
     "agent/custom/action/auto_treatment/auto_treatment.py": "fc3c703e7c1fb20518f503d2bad30e2d55c9ad9abae5ccb7aee64f6710c11462",
     "agent/custom/action/auto_treatment/auto_treatment_cycle.py": "c16280bc4508369ca03fe559e82fedf1143173150a35641666b0f520272db9e4",
     "agent/custom/action/auto_treatment/__init__.py": "af81c5d8d26c9fce291e683315f972883889cc8eed8bbef89c3597b8676ff988",
-    "agent/custom/action/march/dispatch_panel.py": "f4107ca35893965ed51b7644b08b64a42cc6a5e628768c97276af62fb1319682",
-    "agent/custom/action/march/march.py": "db65ea31604e981817752411a4e7c6a4360e49dd84a1f22d778e0d959e3e0903",
-    "agent/custom/action/march/README.md": "d782f8e6a086e4d2ced5f450ae3671d96d82988a916efc2b9da95269cfc0f3a9",
+    "agent/custom/action/march/dispatch_panel.py": "4f7028a1837fcaf73db8612b0eb79f348d8ecbbc2db4c2fc34537c89f605f409",
+    "agent/custom/action/march/march.py": "bb3d7fbaf052f0eb5c28d9c2b5694f2177bbb650840a6d6d8751a157c1d2396c",
+    "agent/custom/action/march/README.md": "54efddfbb0877e7a4e86a8f0465017334d5181b89408cdcdfaae15dd3517f30d",
     "agent/custom/action/march/state.py": "ae0cd1d7cf9897168202bc957832decf2e799cbf02d58684713ca0f4c3a130c9",
     "agent/custom/action/march/__init__.py": "6fabab970a6c98db51d94750bbbcd687983bfbb2fd8c61128897b41ea0ca5c6e",
     "agent/custom/action/stop_auto_help/stop_auto_help.py": "fb2642a1945850fa4107c02c093e4f8aa6ee834bb2dec77d0e59c28ca906388f",
@@ -155,7 +156,7 @@
     "resource/base/pipeline/Interface/RunConfiguredCase.json": "05dcde1535816dc3c0bb753315d2a2b46b3cb54e2ab6c6c628d1dac0d26c3425",
     "resource/base/pipeline/Common/Scene/InnerCity.json": "23460d6a94ccbae7e5642b0e46f32bb26a1baaae3313331b504918415f717a9a",
     "tests/test_config_basic.py": "575b56f133dd71c5854db6b2329ce7311d328ec8cf47fd5dfcc568e68c66838e",
-    "tests/test_march_basic.py": "f80363bd2da3c2a27f9ec1c2e7bb853b4aa4122d80fe822a2ed0a4aae2f51bfd",
+    "tests/test_march_basic.py": "64bebaa12b3bc1881f3ca5943f21c6cbec7b4909ccd49847df8765de1a26b981",
     "licenses/MaaFramework-LICENSE.md": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
     "licenses/MXU-LICENSE.txt": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
     "AGENTS.md": "b6ea8bd68783bf5062b3c6961a6cc1a04eeeb748b8a154b32ca81b07afbcb9ee",
@@ -169,7 +170,8 @@
     "resource/tasks/auto_fu_hu.json": "e5659dde707952a21b7adf86791f4c6a1e60c7bee58bf8bd2e7b9be869e66dbc",
     "resource/base/image/AutoTreatment/treatment_entry_red.png": "85b242122ff87bf52bc8f327d9710aa929396d984c28cbbdf20725b27c951c7c",
     "resource/base/image/AutoTreatment/treatment_help_pending.png": "9f8c3096c7689bf50a2933dd12502f54c6df79b09e7ad93ab20446a14fddb053",
-    "resource/base/image/AutoLingEr/rally_masked.png": "843fed263d1aa41a622727abeb39f0bac994b549dc18e22b08a3277ea3cb1857"
+    "resource/base/image/AutoLingEr/rally_masked.png": "843fed263d1aa41a622727abeb39f0bac994b549dc18e22b08a3277ea3cb1857",
+    "resource/base/image/Common/March/disciple_count_icon.png": "cef7283c1c0df440226672ec4a1de4677e015d343f174894de8956169947dec7"
   },
   "platform_preserved": [
     "agent/core.py",
@@ -243,6 +245,29 @@
         "tests/test_config_basic.py",
         "tests/test_march_basic.py",
         "resource/base/image/AutoLingEr/rally_masked.png"
+      ]
+    },
+    {
+      "date": "2026-11-03",
+      "feature": "取消出征人数标题硬依赖，修复小队数量变化时的状态补读",
+      "source_commit": "ded8db9a43d9191634204f6d69b1b4ce11f0907a",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/march/dispatch_panel.py",
+        "agent/custom/action/march/march.py",
+        "agent/custom/action/march/README.md",
+        "resource/base/image/Common/March/disciple_count_icon.png",
+        "tests/test_march_basic.py"
+      ]
+    },
+    {
+      "date": "2026-11-03",
+      "feature": "小队数量栏排除蓝色行军箭头，修复返回后0/4误读",
+      "source_commit": "ded8db9a43d9191634204f6d69b1b4ce11f0907a",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/march/march.py",
+        "agent/custom/action/march/README.md"
       ]
     }
   ]

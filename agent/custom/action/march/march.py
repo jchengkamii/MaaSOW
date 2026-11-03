@@ -348,12 +348,14 @@ class March(DispatchPanel):
         if title is None:
             self.snapshot_reason = "小队标题匹配不唯一"
             return False, [], 0
+        # 数量紧靠标题栏右端，排除左侧地图箭头；每次读取都要求完整分数，失败后才进入下一种读法。
+        count_left = int(w * .30)
+        count_pattern = r"^[0-4][/／][1-4]$"
         top = ystart + title.y
-        counts = self.ocr(image[top:top + title.h, int(w * .27):xend],
-                          [r"[0-4][/／][1-4]"])
+        counts = self.ocr(image[top:top + title.h, count_left:xend], [count_pattern])
         if len(counts) != 1:
-            counts = self.ocr(image[top:top + title.h, int(w * .27):xend],
-                              [r"[0-4][/／][1-4]"], only_rec=True)
+            counts = self.ocr(image[top:top + title.h, count_left:xend],
+                              [count_pattern], only_rec=True)
         if len(counts) != 1:
             # A map label can also produce a false-positive header match.
             # Re-anchor to explicit 小队 text before giving up on the count.
@@ -365,8 +367,8 @@ class March(DispatchPanel):
                 title = Rect(box.x, y, box.w, min(header_region.shape[0] - y, box.h + 2 * pad))
                 top = ystart + title.y
                 for only_rec in (False, True):
-                    counts = self.ocr(image[top:top + title.h, int(w * .27):xend],
-                                      [r"[0-4][/／][1-4]"], only_rec=only_rec)
+                    counts = self.ocr(image[top:top + title.h, count_left:xend],
+                                      [count_pattern], only_rec=only_rec)
                     if len(counts) == 1:
                         break
         counts = [result for result in counts
@@ -405,7 +407,8 @@ class March(DispatchPanel):
         # 图标部分漏检时，逐行复核已确认的位置、头像和状态；采集状态同样是有效的可见证据。
         cached_shape, cached_rows = getattr(self, '_snapshot_row_cache', (None, []))
         if (count is not None and 0 < count <= 4 and len(located) < count
-                and cached_shape == image.shape[:2] and len(cached_rows) == count):
+                and cached_shape == image.shape[:2] and 0 < len(cached_rows) <= 4):
+            # 数量变化时仍可逐行采信头像和状态；完整列表必须重新与当前数量核对，不能沿用旧数量。
             diagnostics = []
             recovered = 0
             for box, old_avatar in cached_rows:

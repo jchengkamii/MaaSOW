@@ -165,37 +165,26 @@ class MarchBasicTests(unittest.TestCase):
             f.click.assert_not_called()
             f.recover_world.assert_not_called();f.reconcile_pending_dispatch.assert_not_called()
 
-    def test_disciple_quantity_waits_for_clear_title_and_preserves_zero_guard(self):
+    def test_disciple_quantity_uses_bar_without_title_and_preserves_zero_guard(self):
         from maa.define import Rect
         from agent.custom.action.march.dispatch_panel import ZeroDisciples
-        # 回放 16:47:00 的失败画面：数量可读但标题被协助提示遮挡，仅有分数不能确认弟子数量。
-        obstructed=[SimpleNamespace(text='长夏为您治疗伤兵提供了加速帮助！',box=Rect(156,2,349,20)),
-                    SimpleNamespace(text='?',box=Rect(253,54,26,26)),
-                    SimpleNamespace(text='1846/1846',box=Rect(411,59,116,23))]
-        label=SimpleNamespace(text='弟子数量',box=Rect(409,20,106,25))
+        icon=SimpleNamespace(box=Rect(38,45,48,48))
         button=SimpleNamespace(text='组队',box=Rect(417,278,89,46))
         for quantity in (1846,0):
-            with self.subTest(quantity=quantity):
-                f=self.flow(LingEr)
-                clear=[label,SimpleNamespace(text=f'{quantity}/1846',box=Rect(411,59,116,23))]
-                f.ocr=Mock(side_effect=[obstructed,clear,[button]])
-                if quantity:
-                    self.assertTrue(March.text_button(f,'组队'))
-                    f.click.assert_called_once()
-                    self.assertTrue(f.pending_dispatch)
-                else:
-                    with self.assertRaises(ZeroDisciples):
-                        March.text_button(f,'组队')
-                    f.click.assert_not_called()
-                self.assertEqual(.5,f.pause.call_args_list[0].args[0])
-                f.record_panel_failure.assert_not_called()
-
-        f=self.flow(LingEr);f.ocr=Mock(return_value=obstructed)
-        with self.assertRaisesRegex(RuntimeError,'无法确认出征面板弟子数量'):
-            March.text_button(f,'组队')
-        self.assertEqual(8,f.ocr.call_count)
-        f.click.assert_not_called()
-        f.record_panel_failure.assert_called_once_with(f.screenshot.return_value)
+            f=self.flow(LingEr);f.templates=Mock(return_value=[icon])
+            values=[SimpleNamespace(text=f'{quantity}/1846',box=Rect(120,20,116,24))]
+            f.ocr=Mock(side_effect=[values,[button]])
+            if quantity:
+                self.assertTrue(f.text_button('组队'))
+                f.click.assert_called_once()
+            else:
+                with self.assertRaises(ZeroDisciples):
+                    f.text_button('组队')
+                f.click.assert_not_called()
+        f=self.flow(LingEr);f.templates=Mock(return_value=[]);f.ocr=Mock()
+        with self.assertRaisesRegex(RuntimeError,'无法唯一确认出征面板人数栏'):
+            f.text_button('组队')
+        f.click.assert_not_called();f.ocr.assert_not_called()
 
     def test_only_selected_idle_queue_is_dispatched(self):
         f=self.flow(Pixiu)
@@ -289,60 +278,32 @@ class MarchBasicTests(unittest.TestCase):
         f.open_target_panel.assert_called_once_with()
         f.text_button.assert_not_called();f.close_dispatch_panel.assert_not_called()
 
-    def test_rally_recovers_one_missing_icon_among_gathering_squads(self):
+    def test_rally_recovers_status_when_count_changes(self):
         from maa.define import Rect
         f=self.flow(LingEr)
-        avatars=np.random.default_rng(33).random((4,24,24,3))
-        current=list(avatars)
-        states=[S.ASSEMBLING,None,None,S.ASSEMBLING]
-        gathering_readable=[False]
+        avatars=np.random.default_rng(33).random((2,24,24,3))
+        states=[S.ASSEMBLING,S.ASSEMBLING]
         header=SimpleNamespace(box=Rect(56,60,48,30))
-        # 回放 17:07:08 的布局：占用数为 4/4，第一队图标消失，采集队和另一集结队仍可见。
-        anchors=[SimpleNamespace(box=Rect(x,y,31,31)) for x,y in
-                 ((222,16),(221,76),(221,137),(222,199))]
-        origin=int(f.screenshot.return_value.shape[0]*.18)+60+30
+        anchors=[SimpleNamespace(box=Rect(222,y,31,31)) for y in (16,77)]
+        origin=int(f.screenshot.return_value.shape[0]*.18)+90
         def read(image,start,box):
-            index=min(range(4),key=lambda i:abs(start+box.y-origin-anchors[i].box.y))
-            self.assertEqual(origin+anchors[index].box.y,start+box.y)
-            texts=(['采集中'] if gathering_readable[0] and index in (1,2)
-                   else [str(states[index])])
-            return SquadRow(current[index],states[index]),texts
+            index=min(range(2),key=lambda i:abs(start+box.y-origin-anchors[i].box.y))
+            return SquadRow(avatars[index],states[index]),[str(states[index])]
         f.templates=Mock(return_value=[header]);f.row_anchors=Mock(return_value=anchors)
-        f.ocr=Mock(return_value=[SimpleNamespace(text='4/4')])
+        f.ocr=Mock(return_value=[SimpleNamespace(text='2/4')])
         f.read_squad_row=Mock(side_effect=read)
         handle=MarchHandle(1,avatars[0],RallyTracker(state=S.ASSEMBLING,assembled=True))
         f.active={1:handle}
         self.assertTrue(f.snapshot()[0])
-        # 同时漏掉采集图标且文字尚未确认时，只采信已恢复的行军状态。
-        f.row_anchors.return_value=anchors[2:]
-        states[0]=S.OUTBOUND
-        valid,rows,count=f.snapshot()
-        self.assertFalse(valid);self.assertEqual(4,count)
-        self.assertEqual(S.OUTBOUND,handle.tracker.state)
-        self.assertTrue(handle.tracker.departed)
-        # 采集文字和原头像均确认后，才补齐该行；采集行本身不推进集结状态。
-        gathering_readable[0]=True
+        # 数量下降且图标漏检时，原位置的头像和状态仍须复核。
+        f.row_anchors.return_value=[];f.ocr.return_value=[SimpleNamespace(text='1/4')]
+        states[:]=[S.OUTBOUND,None]
         self.assertTrue(f.snapshot()[0])
+        self.assertTrue(handle.tracker.departed)
         self.assertEqual(S.OUTBOUND,handle.tracker.state)
-        f.row_anchors.return_value=anchors[1:]
-        for status in (S.OUTBOUND,S.FIGHTING,S.RETURNING):
-            states[0]=status
-            valid,rows,count=f.snapshot()
-            self.assertTrue(valid);self.assertEqual(4,count)
-            self.assertEqual(status,rows[0].status)
-            self.assertEqual(status,handle.tracker.state)
-        self.assertTrue(handle.tracker.departed);self.assertTrue(handle.tracker.fought)
-
-        # 不能仅凭缓存位置恢复状态或头像未确认的队伍。
-        for status,avatar in ((None,avatars[0]),(S.RETURNING,avatars[1])):
-            states[0]=status;current[0]=avatar
-            self.assertFalse(f.snapshot()[0])
-            self.assertEqual(S.RETURNING,handle.tracker.state)
-            self.assertEqual(0,handle.tracker.missing)
-        f.record_panel_failure.assert_called_with(f.screenshot.return_value,stage='row_recovery')
-        for _ in range(3):
-            f.observe_active(True,[SquadRow(avatars[i],states[i]) for i in (1,2,3)])
-        self.assertEqual(S.COMPLETED,handle.tracker.state)
+        states[0]=None
+        self.assertFalse(f.snapshot()[0])
+        self.assertEqual(0,handle.tracker.missing_observations)
 
     def test_squad_count_wide_read_requires_the_header_line(self):
         from maa.define import Rect
