@@ -531,7 +531,7 @@ class March(DispatchPanel):
         selected_avatar = slots[desired - 1][2]
         if getattr(self, 'panel_busy', [False] * 4)[desired - 1]:
             raise RuntimeError(f"第 {desired} 队出现占用标记，未点击出征")
-        if any(similarity(row.avatar, selected_avatar) >= .65 for row in existing):
+        if any(similarity(row.avatar, self.hud_avatar(desired, selected_avatar)) >= .65 for row in existing):
             raise RuntimeError("所选队伍已在行军或与已有队伍头像相同，无法唯一跟踪")
         if self.zero_disciples():
             raise ZeroDisciples("弟子数量为 0，等待队伍返回")
@@ -551,7 +551,7 @@ class March(DispatchPanel):
         next_diagnostic = 0
         while time.monotonic() < deadline:
             valid, rows, count = self.snapshot()
-            scores = [similarity(row.avatar, selected_avatar) for row in rows]
+            scores = [similarity(row.avatar, self.hud_avatar(desired, selected_avatar)) for row in rows]
             candidate = self.matching_dispatch_row(valid, rows, selected_avatar)
             confirmed = None
             method = "头像唯一匹配"
@@ -587,6 +587,7 @@ class March(DispatchPanel):
                 handle.avatar = confirmed.avatar
                 handle.last_count = count if valid else len(rows)
                 handle.tracker.observe(visible=True, status=confirmed.status, reliable=True)
+                self.remember_dispatch_avatar(handle)
                 self.engine.log(f"第 {desired} 队已出征：{handle.tracker.state}；确认方式：{method}")
                 return handle
             if time.monotonic() >= next_diagnostic:

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 from agent.custom.action.march.march import March, MarchHandle, SquadRow
 from agent.custom.action.march.state import MarchState as S, MarchTracker, parse_status
-from agent.custom.action.auto_pixiu import Pixiu
+from agent.custom.action.auto_pixiu import Pixiu, run as run_pixiu
 from agent.custom.action.auto_ling_er import LingEr, RallyTracker, run as run_ling_er
 from agent.custom.action.auto_fu_hu import FuHu, FuHuFinished, run as run_fu_hu
 
@@ -40,6 +40,135 @@ class MarchBasicTests(unittest.TestCase):
         if kind is FuHu:
             f.check_icon_completion=Mock()
         return f
+
+    def test_pixiu_searches_left_right_left_then_returns_to_world(self):
+        import json
+        from agent.core import PROJECT_DIR
+        nodes=json.loads((PROJECT_DIR/'resource/base/pipeline/Common/March.json').read_text(encoding='utf-8'))
+        self.assertIn('通用行军蓝色返回',nodes['通用行军进入大地图']['next'])
+        back=nodes['通用行军蓝色返回']
+        self.assertIn('AutoPixiu/activity_back.png',back['template'])
+        self.assertEqual('Click',back['action'])
+        self.assertEqual([0,-180,160,180],back['roi'])
+        for found_on in (1,2,3,None):
+            with self.subTest(found_on=found_on):
+                f=self.flow(Pixiu)
+                f.open_activity=Mock();f.activity_visible=Mock(return_value=True)
+                f.pipeline.return_value=True
+                position=1
+                directions=[]
+                def swipe(x0,y0,x1,y1,duration):
+                    nonlocal position
+                    direction='左' if x1 < x0 else '右'
+                    if not directions or directions[-1] != direction:
+                        directions.append(direction)
+                    position=max(0,min(2,position+(1 if direction == '左' else -1)))
+                    return SimpleNamespace(wait=lambda:SimpleNamespace(succeeded=True))
+                f.controller=Mock()
+                f.controller.post_swipe.side_effect=swipe
+                f.tab_signature=Mock(side_effect=lambda:[('其他活动',position*40)])
+                def text(pattern,region,click=False):
+                    if region == (.15,.88,1,1):
+                        self.assertEqual('^祥瑞聚宝$',pattern)
+                        self.assertTrue(click)
+                        return found_on == len(directions)
+                    return True
+                f.region_text=Mock(side_effect=text)
+                if found_on is None:
+                    with self.assertRaisesRegex(RuntimeError,'已返回大地图'):
+                        f.locate(None)
+                    f.pipeline.assert_called_once_with('通用行军进入大地图')
+                    self.assertTrue(all(c.args[1] == (.15,.88,1,1) for c in f.region_text.call_args_list))
+                else:
+                    f.locate(None)
+                    f.pipeline.assert_not_called()
+                    self.assertTrue(any(c.args[0] == '^搜索灵[貅貔]$' for c in f.region_text.call_args_list))
+                self.assertEqual(['左','右','左'][:found_on],directions)
+                self.assertLessEqual(f.controller.post_swipe.call_count,11)
+
+    def test_pixiu_retries_recovered_lookup_without_waiting_for_hud(self):
+        f=self.flow(Pixiu)
+        f.pipeline.return_value=True
+        f.free_queue=Mock(side_effect=[False,True,None])
+        f.dispatch=Mock(side_effect=[object(),RuntimeError('已返回大地图'),object()])
+        f.recover_world=Mock();f.pending_dispatch=False
+        case=SimpleNamespace(parameters={'attack_count':2,'attack_queues':[2,3,4]})
+        with patch('agent.custom.action.auto_pixiu.Pixiu',return_value=f):
+            self.assertIn('已完成 2 次',run_pixiu(f.engine,case))
+        self.assertEqual(3,f.dispatch.call_count)
+        self.assertEqual(2,f.free_queue.call_count)
+        f.recover_world.assert_called_once()
+
+    def test_pixiu_pending_dispatch_waits_for_same_squad_idle_before_retry(self):
+        a,b=np.random.default_rng(112).random((2,24,24,3))
+        handle=MarchHandle(4,a,MarchTracker(),panel_avatar=a.copy())
+        f=self.flow(Pixiu)
+        f.pending_handle=handle;f.pending_dispatch=True
+        f.recover_world=Mock();f.locate=Mock();f.open_target_panel=Mock(return_value=True)
+        f.dispatch=Mock();f.text_button=Mock()
+        f.reconcile_pending_dispatch=Mock(side_effect=[RuntimeError('出征未确认')]*3)
+        # A busy badge on the second frame or a changed portrait must keep
+        # the dispatch pending. Only two idle frames of the original squad retry.
+        reads=iter([(False,a),(True,a),(False,b),(False,a),(False,a)])
+        def panel():
+            self.assertTrue(f.pending_dispatch)
+            busy,avatar=next(reads)
+            f.panel_busy=[False,False,False,busy]
+            return 4,[(True,(0,0),b)]*3+[(True,(0,0),avatar)]
+        f.ready_dispatch_panel=Mock(side_effect=panel)
+        with patch('agent.custom.action.auto_pixiu.time.monotonic',return_value=0):
+            self.assertFalse(f.recover_dispatch(900))
+        self.assertFalse(f.pending_dispatch)
+        self.assertEqual(3,f.reconcile_pending_dispatch.call_count)
+        self.assertEqual(5,f.ready_dispatch_panel.call_count)
+        f.dispatch.assert_not_called();f.text_button.assert_not_called()
+        f.pending_dispatch=True
+        f.reconcile_pending_dispatch.side_effect=None
+        f.reconcile_pending_dispatch.return_value=True
+        f.ready_dispatch_panel.reset_mock()
+        with patch('agent.custom.action.auto_pixiu.time.monotonic',return_value=0):
+            self.assertTrue(f.recover_dispatch(900))
+        f.ready_dispatch_panel.assert_not_called()
+        with patch('agent.custom.action.auto_pixiu.time.monotonic',return_value=900):
+            with self.assertRaisesRegex(TimeoutError,'等待重试超时'):
+                f.recover_dispatch(900)
+        self.assertTrue(f.pending_dispatch)
+        f.dispatch.assert_not_called();f.text_button.assert_not_called()
+
+    def test_confirmed_hud_portraits_prevent_false_idle_and_dispatch_timeouts(self):
+        f=self.flow(Pixiu)
+        panel_avatar,hud_avatar,changed=np.random.default_rng(113).random((3,24,24,3))
+        row=SquadRow(hud_avatar,S.OUTBOUND)
+        slots=[(False,(0,0),changed)]*2+[(True,(0,0),panel_avatar)]
+        f.panel=Mock(return_value=(3,slots));f.panel_busy=[False]*3
+        f.zero_disciples=Mock(return_value=False);f.text_button=Mock(return_value=True)
+        f.snapshot=Mock(return_value=(True,[row],1))
+        # Different panel/HUD art is learned only after unique added-squad
+        # evidence has confirmed the initial dispatch for three frames.
+        handle=f._submit_from_panel(queue=3,existing=[])
+        self.assertEqual(3,f.snapshot.call_count)
+        np.testing.assert_array_equal(hud_avatar,f.hud_avatar(3,panel_avatar))
+        f.allowed_queues=[3];f.allowed_avatars={3:panel_avatar}
+        self.assertFalse(f.free_queue());self.assertFalse(f.free_queue())
+        f.snapshot.return_value=(False,[row],1)
+        self.assertIsNone(f.free_queue())
+        # A later dispatch can be reconciled even if the old pre-activity
+        # baseline is unavailable, using the previously confirmed HUD portrait.
+        f.pending_dispatch=True;f.pending_handle=handle;f.pending_avatar=panel_avatar
+        f.pending_baseline_reliable=False;f.pending_rows=[]
+        f.snapshot.return_value=(True,[row],1);f.snapshot.reset_mock()
+        f.text_button.reset_mock()
+        self.assertTrue(f.reconcile_pending_dispatch())
+        self.assertEqual(3,f.snapshot.call_count)
+        f.text_button.assert_not_called()
+        self.assertIsNone(f.matching_dispatch_row(True,[SquadRow(hud_avatar,S.RETURNING)],panel_avatar))
+        # Even a missed panel busy badge cannot submit a squad still in the HUD.
+        with self.assertRaisesRegex(RuntimeError,'所选队伍已在行军'):
+            f._submit_from_panel(queue=3,existing=[row])
+        self.assertFalse(any(c.args[0] == '出征' for c in f.text_button.call_args_list))
+        self.assertIs(changed,f.hud_avatar(3,changed))
+        self.assertNotIn(3,f._hud_avatars)
+        self.assertIsNone(f.matching_dispatch_row(True,[row],changed))
 
     def test_bubble_background_fallback_preserves_dispatch_guards(self):
         f=self.flow(March)

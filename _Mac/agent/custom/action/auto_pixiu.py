@@ -143,28 +143,36 @@ class Pixiu(March):
             if not self.activity_visible():
                 raise RuntimeError("活动界面已离开，停止查找页签")
             if self.region_text(f"^{name}$", (.15, .88, 1, 1), click=click):
-                return
+                return True
             current = self.tab_signature()
             same = (bool(current) and previous is not None and len(current) == len(previous)
                     and all(a[0] == b[0] and abs(a[1] - b[1]) <= 8
                             for a, b in zip(current, previous)))
             unchanged = unchanged + 1 if same else 0
             if unchanged >= 2:
-                raise RuntimeError(f"活动页签已到边界或滑动未生效，未找到{name}，已停止滑动")
+                self.engine.log(f"活动页签已到边界或滑动未生效，未找到{name}，结束本轮查找")
+                return False
             previous = current
             if attempt == 24:
                 break
             # Earlier tabs are on the left: drag right to reveal them.
-            # After finding the calendar, drag left to search later tabs.
             self.swipe_tabs(left=not toward_start)
-        raise RuntimeError(f"活动页签查找超过滑动上限，未找到{name}")
+        self.engine.log(f"活动页签查找达到滑动上限，未找到{name}，结束本轮查找")
+        return False
 
     def locate(self, _engine):
         self.open_activity()
-        self.engine.log("向页签左端查找活动日历（向右拖动页签栏）")
-        self.find_activity_tab("活动日历", toward_start=True)
-        self.engine.log("已找到活动日历，向页签右侧查找祥瑞聚宝（向左拖动页签栏）")
-        self.find_activity_tab("祥瑞聚宝", toward_start=False, click=True)
+        for attempt, toward_start in enumerate((False, True, False), 1):
+            direction = "右" if toward_start else "左"
+            self.engine.log(f"第 {attempt}/3 轮查找祥瑞聚宝：向{direction}拖动活动页签栏")
+            if self.find_activity_tab("祥瑞聚宝", toward_start=toward_start, click=True):
+                break
+        else:
+            self.engine.log("向左、向右、再向左查找均未找到祥瑞聚宝，点击左下角返回大地图")
+            if not self.pipeline("通用行军进入大地图"):
+                self.record_panel_failure(self.screenshot())
+                raise RuntimeError("未找到祥瑞聚宝，且点击活动返回按钮后未能确认大地图")
+            raise RuntimeError("向左、向右、再向左查找均未找到祥瑞聚宝，已返回大地图")
         for attempt in range(6):
             if self.region_text("^祥瑞聚宝$", (0, .03, .48, .18)):
                 break
@@ -182,6 +190,31 @@ class Pixiu(March):
         raise RuntimeError("搜索后未确认藏宝灵貅目标，可能本波已被打完")
 
 
+    def recover_dispatch(self, deadline):
+        self.recover_world()
+        if getattr(self, 'pending_dispatch', False) is not True:
+            return False
+        handle = getattr(self, 'pending_handle', None)
+        if handle is None:
+            raise RuntimeError("待确认出征缺少队伍记录，无法安全重试")
+        while time.monotonic() < deadline:
+            try:
+                if self.reconcile_pending_dispatch() is True:
+                    return True
+            except (RuntimeError, TimeoutError) as exc:
+                self.engine.log(f"出征结果仍未确认，打开面板复核原队列：{exc}")
+            if time.monotonic() >= deadline:
+                break
+            if self.confirm_idle_in_panel(handle, select_target=self.locate):
+                self.pending_dispatch = False
+                self.engine.log(f"连续两帧确认第 {handle.queue} 队头像一致且已空闲；"
+                                "本次未确认出征，不计数，重新执行貔貅流程")
+                return False
+            self.engine.log(f"第 {handle.queue} 队尚未确认空闲，继续复核；暂不重复出征")
+            self.pause(1)
+        raise TimeoutError("出征结果和原队列空闲状态持续无法确认，等待重试超时；本次未计数")
+
+
 def run(engine, case):
     count = attack_count((case.parameters or {}).get("attack_count", 1))
     queues = attack_queues((case.parameters or {}).get("attack_queues", [1, 2, 3, 4]))
@@ -195,11 +228,13 @@ def run(engine, case):
         waiting_logged = False
         stamina_relocations = 0
         recoveries = 0
+        retry_ready = False
         while True:
             # First run discovers actual capacity from the panel. Thereafter,
-            # stay in the world until the HUD positively confirms a free slot;
-            # an unreadable frame must not reopen the activity while all are busy.
-            if (not waiting_logged and completed == 0) or flow.free_queue() is True:
+            # wait for a free HUD slot, except when recovery explicitly permits
+            # retrying an unsubmitted attempt or a panel-confirmed idle squad.
+            if retry_ready or (not waiting_logged and completed == 0) or flow.free_queue() is True:
+                retry_ready = False
                 try:
                     flow.dispatch(None, select_target=flow.locate)
                     break
@@ -221,9 +256,10 @@ def run(engine, case):
                     engine.log(f"检测失败，尝试恢复 {recoveries}/3：{exc}")
                     if recoveries > 3 or time.monotonic() >= deadline:
                         raise RuntimeError(f"连续恢复仍失败；已成功出征 {completed}/{count} 次：{exc}") from exc
-                    flow.recover_world()
-                    if flow.reconcile_pending_dispatch() is True:
+                    if flow.recover_dispatch(deadline) is True:
                         break
+                    retry_ready = True
+                    engine.log(f"已恢复大世界，主动重新执行貔貅流程（重试 {recoveries}/3，本次未计数）")
                     continue
             if not waiting_logged:
                 engine.log("尚未确认空闲队列，留在大世界检测左上角小队状态……")

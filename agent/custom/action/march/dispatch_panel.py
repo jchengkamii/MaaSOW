@@ -252,9 +252,30 @@ class DispatchPanel:
         self.record_panel_failure(self.screenshot())
         raise RuntimeError('恢复失败：未能连续确认无出征弹窗的大世界默认态')
 
+    def hud_avatar(self, queue, panel_avatar):
+        from .march import similarity
+        cache = getattr(self, '_hud_avatars', {})
+        known = cache.get(queue)
+        if known is not None:
+            if similarity(panel_avatar, known[0]) >= .80:
+                return known[1]
+            # A changed commander must not reuse the previous squad's HUD image.
+            cache.pop(queue)
+        return panel_avatar
+
+    def remember_dispatch_avatar(self, handle):
+        if handle.panel_avatar is None or handle.tracker.state not in self.dispatch_states:
+            return
+        if not hasattr(self, '_hud_avatars'):
+            self._hud_avatars = {}
+        self._hud_avatars[handle.queue] = (handle.panel_avatar.copy(), handle.avatar.copy())
+
     def matching_dispatch_row(self, valid, rows, avatar):
         """Positive dispatch evidence; never proves absence or completion."""
         from .march import similarity
+        handle = getattr(self, 'pending_handle', None)
+        if handle is not None:
+            avatar = self.hud_avatar(handle.queue, avatar)
         matches = [(row, similarity(row.avatar, avatar)) for row in rows]
         matches = [(row, score) for row, score in matches if score >= .65]
         if len(matches) != 1 or matches[0][0].status not in self.dispatch_states:
@@ -290,6 +311,7 @@ class DispatchPanel:
                         handle.avatar = candidate.avatar
                         handle.last_count = count if valid else len(rows)
                         handle.tracker.observe(visible=True, status=candidate.status, reliable=True)
+                        self.remember_dispatch_avatar(handle)
                     self.engine.log('恢复后连续三帧确认已出征，继续跟踪对应队伍')
                     return True
             self.pause(.5)
@@ -342,7 +364,7 @@ class DispatchPanel:
                 self.selected_free_candidates = set()
                 return None
             free = {q for q, avatar in avatars.items() if q in allowed
-                    and not any(similarity(row.avatar, avatar) >= .65 for row in rows)}
+                    and not any(similarity(row.avatar, self.hud_avatar(q, avatar)) >= .65 for row in rows)}
             previous = getattr(self, 'selected_free_candidates', set())
             self.selected_free_candidates = free
             return bool(free & previous)
@@ -460,9 +482,11 @@ class DispatchPanel:
         # the stale row, including the guard in the common dispatch flow.
         def returned_rows(current_slots, current_busy):
             return [row for row in existing
-                    if any(unlocked and not current_busy[i] and similarity(row.avatar, avatar) >= .65
+                    if any(unlocked and not current_busy[i]
+                           and similarity(row.avatar, self.hud_avatar(i + 1, avatar)) >= .65
                            for i, (unlocked, _, avatar) in enumerate(current_slots))
-                    and not any(current_busy[i] and similarity(row.avatar, avatar) >= .65
+                    and not any(current_busy[i]
+                                and similarity(row.avatar, self.hud_avatar(i + 1, avatar)) >= .65
                                 for i, (_, _, avatar) in enumerate(current_slots))]
 
         returned = returned_rows(slots, busy) if hasattr(self, 'panel_busy') else []
@@ -485,7 +509,7 @@ class DispatchPanel:
         candidates = [i + 1 for i, (unlocked, _, avatar) in enumerate(slots)
                       if i + 1 in allowed and (queue is None or i + 1 == queue)
                       and unlocked and not busy[i]
-                      and not any(similarity(row.avatar, avatar) >= .65 for row in existing)]
+                      and not any(similarity(row.avatar, self.hud_avatar(i + 1, avatar)) >= .65 for row in existing)]
         for i, (unlocked, _, avatar) in enumerate(slots):
             reason = ('未勾选，不参与出征' if i + 1 not in allowed else
                       '行军/返回图标或状态竖条显示占用' if busy[i] else
