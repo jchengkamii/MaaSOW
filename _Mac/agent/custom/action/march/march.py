@@ -327,7 +327,8 @@ class March(DispatchPanel):
         if not titles:
             # The HUD is translucent. Map labels behind 小队 can lower the
             # template score even though its text remains clearly readable.
-            labels = self.ocr(header_region, ["^小队$"])
+            labels = [result for result in self.ocr(header_region, ["^小队$"])
+                      if result.text.strip() == "小队"]
             if len(labels) == 1:
                 box = labels[0].box
                 pad = max(3, round(w * 4 / 720))
@@ -351,15 +352,25 @@ class March(DispatchPanel):
         # 数量紧靠标题栏右端，排除左侧地图箭头；每次读取都要求完整分数，失败后才进入下一种读法。
         count_left = int(w * .30)
         count_pattern = r"^[0-4][/／][1-4]$"
+
+        def read_counts(region, only_rec=False):
+            # 4/2 等误读格式虽合法，数值仍无效，不能因此跳过后续识别方式。
+            values = []
+            for result in self.ocr(region, [count_pattern], only_rec=only_rec):
+                match = re.fullmatch(r"([0-4])[/／]([1-4])", result.text.strip())
+                if match and int(match[1]) <= int(match[2]):
+                    values.append(result)
+            return values
+
         top = ystart + title.y
-        counts = self.ocr(image[top:top + title.h, count_left:xend], [count_pattern])
+        counts = read_counts(image[top:top + title.h, count_left:xend])
         if len(counts) != 1:
-            counts = self.ocr(image[top:top + title.h, count_left:xend],
-                              [count_pattern], only_rec=True)
+            counts = read_counts(image[top:top + title.h, count_left:xend], only_rec=True)
         if len(counts) != 1:
             # A map label can also produce a false-positive header match.
             # Re-anchor to explicit 小队 text before giving up on the count.
-            labels = self.ocr(header_region, ["^小队$"])
+            labels = [result for result in self.ocr(header_region, ["^小队$"])
+                      if result.text.strip() == "小队"]
             if len(labels) == 1:
                 box = labels[0].box
                 pad = max(3, round(w * 4 / 720))
@@ -367,15 +378,12 @@ class March(DispatchPanel):
                 title = Rect(box.x, y, box.w, min(header_region.shape[0] - y, box.h + 2 * pad))
                 top = ystart + title.y
                 for only_rec in (False, True):
-                    counts = self.ocr(image[top:top + title.h, count_left:xend],
-                                      [count_pattern], only_rec=only_rec)
+                    counts = read_counts(image[top:top + title.h, count_left:xend], only_rec=only_rec)
                     if len(counts) == 1:
                         break
-        counts = [result for result in counts
-                  if re.fullmatch(r'[0-4][/／][1-4]', result.text.strip())]
         if len(counts) != 1:
             # 窄图可能把斜线漏掉而读成 214；宽区域检测保留上下文，只接受标题同行右侧的分数。
-            candidates = self.ocr(header_region, [r'^[0-4][/／][1-4]$'])
+            candidates = read_counts(header_region)
             counts = [result for result in candidates
                       if int(w * .27) <= result.box.x
                       and result.box.x + result.box.w <= xend

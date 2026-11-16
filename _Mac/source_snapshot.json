@@ -39,7 +39,7 @@
     "agent/__init__.py": "a97711a54108cda109e9044688b1369dd997707f2d0c0720f0b79c8b3292a2d4",
     "agent/custom/__init__.py": "50450906ea98e1c4e123618026eb5cf0ecfc9f6814457bdc580d261e45e62818",
     "agent/custom/action/auto_ling_er.py": "2268b7e8aa317452fcfa92de941b6c6705df6863d46e7dc73223c0dc879ac10e",
-    "agent/custom/action/auto_pixiu.py": "7d7ddf6f1a881e68c6317fc5846a3bd6842ed9d3f89e409b9668b75fc1ec5ca9",
+    "agent/custom/action/auto_pixiu.py": "672dc44f6b41bc2f8d2d45d8348e9db2e9e963a04630ce577d66be43c15865f3",
     "agent/custom/action/README.md": "885ab6a0087f6528cd80bfe29e85c6e62e2e4240061b58d1e76816619f303786",
     "agent/custom/action/run_configured_case.py": "8361f1eef117431a554a4d2958e112cbfd371dcbb8f89de773fae497ef14cc1d",
     "agent/custom/action/__init__.py": "f296f3b0d35307a809859570c3dde429de805748e5cb8bec65d4b90b779993fe",
@@ -49,8 +49,8 @@
     "agent/custom/action/auto_treatment/auto_treatment_cycle.py": "c16280bc4508369ca03fe559e82fedf1143173150a35641666b0f520272db9e4",
     "agent/custom/action/auto_treatment/__init__.py": "af81c5d8d26c9fce291e683315f972883889cc8eed8bbef89c3597b8676ff988",
     "agent/custom/action/march/dispatch_panel.py": "079af94bf86e045f7e94f7687def8fbc619bcfb5f959eb4b5ea5c6a852585df4",
-    "agent/custom/action/march/march.py": "103206559134ab35cc9e10335a841e3b0c6eff0a6aeec1fd7ce514561ebb0929",
-    "agent/custom/action/march/README.md": "142a99fc26bc0f272cb8005163a751e0a9aa349836329fca6da112e2eff9d940",
+    "agent/custom/action/march/march.py": "97114edff79c1868c41d79a0ffb96bc5ebe1dc88199cf8098c06c44e4d884cf1",
+    "agent/custom/action/march/README.md": "6f547d89f383b0daf75f144600a2ea18319537addbdd05bf2725b3202108e5e0",
     "agent/custom/action/march/state.py": "ae0cd1d7cf9897168202bc957832decf2e799cbf02d58684713ca0f4c3a130c9",
     "agent/custom/action/march/__init__.py": "6fabab970a6c98db51d94750bbbcd687983bfbb2fd8c61128897b41ea0ca5c6e",
     "agent/custom/action/stop_auto_help/stop_auto_help.py": "fb2642a1945850fa4107c02c093e4f8aa6ee834bb2dec77d0e59c28ca906388f",
@@ -156,7 +156,7 @@
     "resource/base/pipeline/Interface/RunConfiguredCase.json": "05dcde1535816dc3c0bb753315d2a2b46b3cb54e2ab6c6c628d1dac0d26c3425",
     "resource/base/pipeline/Common/Scene/InnerCity.json": "dfa8a1a45219ab684b8c8f117d26c0afc342e72dd7ccecdd35c877586e37b649",
     "tests/test_config_basic.py": "575b56f133dd71c5854db6b2329ce7311d328ec8cf47fd5dfcc568e68c66838e",
-    "tests/test_march_basic.py": "220fa4601727890fbbd4d59f12fd0dd53923e1f397dc41e58e4121464dbb5f9b",
+    "tests/test_march_basic.py": "79c3bba6ad421361f79a6a8c67cd34fb3ecdc576e391a0507dba83a0d37d5b0a",
     "licenses/MaaFramework-LICENSE.md": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
     "licenses/MXU-LICENSE.txt": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef",
     "AGENTS.md": "b6ea8bd68783bf5062b3c6961a6cc1a04eeeb748b8a154b32ca81b07afbcb9ee",
@@ -295,6 +295,26 @@
       ],
       "removed_obsolete_hashes": [
         "resource/base/image/AutoLingEr/search.png"
+      ]
+    },
+    {
+      "date": "2026-11-13",
+      "feature": "貔貅先从左向右拖到列表最左端，再向列表右侧查找及反向复查",
+      "source_commit": "0aaacc12338d10f46c43c7916c4de618ee05f687",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/auto_pixiu.py",
+        "tests/test_march_basic.py"
+      ]
+    },
+    {
+      "date": "2026-11-16",
+      "feature": "小队数量每次读取即校验有效数值，避免4/2误读阻断出征确认",
+      "source_commit": "0aaacc12338d10f46c43c7916c4de618ee05f687",
+      "includes_uncommitted_worktree": true,
+      "files": [
+        "agent/custom/action/march/march.py",
+        "agent/custom/action/march/README.md"
       ]
     }
   ]

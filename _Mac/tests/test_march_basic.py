@@ -41,7 +41,7 @@ class MarchBasicTests(unittest.TestCase):
             f.check_icon_completion=Mock()
         return f
 
-    def test_pixiu_searches_left_right_left_then_returns_to_world(self):
+    def test_pixiu_resets_to_left_edge_then_searches_right_and_back(self):
         import json
         from agent.core import PROJECT_DIR
         nodes=json.loads((PROJECT_DIR/'resource/base/pipeline/Common/March.json').read_text(encoding='utf-8'))
@@ -50,7 +50,7 @@ class MarchBasicTests(unittest.TestCase):
         self.assertIn('AutoPixiu/activity_back.png',back['template'])
         self.assertEqual('Click',back['action'])
         self.assertEqual([0,-180,160,180],back['roi'])
-        for found_on in (1,2,3,None):
+        for found_on in (0,1,2,None):
             with self.subTest(found_on=found_on):
                 f=self.flow(Pixiu)
                 f.open_activity=Mock();f.activity_visible=Mock(return_value=True)
@@ -71,7 +71,12 @@ class MarchBasicTests(unittest.TestCase):
                     if region == (.15,.88,1,1):
                         self.assertEqual('^祥瑞聚宝$',pattern)
                         self.assertTrue(click)
-                        return found_on == len(directions)
+                        # 初次打开时即使可见目标，也必须先拖到列表最左端。
+                        self.assertTrue(directions)
+                        if len(directions) == 1:
+                            self.assertEqual('右',directions[0])
+                            self.assertEqual(0,position)
+                        return found_on == len(directions)-1
                     return True
                 f.region_text=Mock(side_effect=text)
                 if found_on is None:
@@ -83,7 +88,8 @@ class MarchBasicTests(unittest.TestCase):
                     f.locate(None)
                     f.pipeline.assert_not_called()
                     self.assertTrue(any(c.args[0] == '^搜索灵[貅貔]$' for c in f.region_text.call_args_list))
-                self.assertEqual(['左','右','左'][:found_on],directions)
+                expected=['右','左','右']
+                self.assertEqual(expected if found_on is None else expected[:found_on+1],directions)
                 self.assertLessEqual(f.controller.post_swipe.call_count,11)
 
     def test_pixiu_retries_recovered_lookup_without_waiting_for_hud(self):

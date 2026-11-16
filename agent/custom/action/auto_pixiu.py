@@ -142,7 +142,8 @@ class Pixiu(March):
         for attempt in range(25):
             if not self.activity_visible():
                 raise RuntimeError("活动界面已离开，停止查找页签")
-            if self.region_text(f"^{name}$", (.15, .88, 1, 1), click=click):
+            # name=None 时只复位到边界，途中看到目标也不提前停止。
+            if name is not None and self.region_text(f"^{name}$", (.15, .88, 1, 1), click=click):
                 return True
             current = self.tab_signature()
             same = (bool(current) and previous is not None and len(current) == len(previous)
@@ -150,6 +151,10 @@ class Pixiu(March):
                             for a, b in zip(current, previous)))
             unchanged = unchanged + 1 if same else 0
             if unchanged >= 2:
+                if name is None:
+                    edge = "左" if toward_start else "右"
+                    self.engine.log(f"活动列表已到最{edge}端")
+                    return True
                 self.engine.log(f"活动页签已到边界或滑动未生效，未找到{name}，结束本轮查找")
                 return False
             previous = current
@@ -157,22 +162,27 @@ class Pixiu(March):
                 break
             # Earlier tabs are on the left: drag right to reveal them.
             self.swipe_tabs(left=not toward_start)
-        self.engine.log(f"活动页签查找达到滑动上限，未找到{name}，结束本轮查找")
+        target = f"未找到{name}" if name is not None else "未确认活动列表边界"
+        self.engine.log(f"活动页签查找达到滑动上限，{target}，结束本轮查找")
         return False
 
     def locate(self, _engine):
         self.open_activity()
-        for attempt, toward_start in enumerate((False, True, False), 1):
-            direction = "右" if toward_start else "左"
-            self.engine.log(f"第 {attempt}/3 轮查找祥瑞聚宝：向{direction}拖动活动页签栏")
+        self.engine.log("先复位到活动列表最左端（从左向右拖动页签栏）")
+        if not self.find_activity_tab(None, toward_start=True):
+            raise RuntimeError("活动列表复位失败，未能确认最左端")
+        for attempt, toward_start in enumerate((False, True), 1):
+            direction = "左" if toward_start else "右"
+            gesture = "从左向右" if toward_start else "从右向左"
+            self.engine.log(f"第 {attempt}/2 轮向活动列表{direction}侧查找祥瑞聚宝（{gesture}拖动页签栏）")
             if self.find_activity_tab("祥瑞聚宝", toward_start=toward_start, click=True):
                 break
         else:
-            self.engine.log("向左、向右、再向左查找均未找到祥瑞聚宝，点击左下角返回大地图")
+            self.engine.log("从列表最左端向右查找并反向复查后仍未找到祥瑞聚宝，点击左下角返回大地图")
             if not self.pipeline("通用行军进入大地图"):
                 self.record_panel_failure(self.screenshot())
                 raise RuntimeError("未找到祥瑞聚宝，且点击活动返回按钮后未能确认大地图")
-            raise RuntimeError("向左、向右、再向左查找均未找到祥瑞聚宝，已返回大地图")
+            raise RuntimeError("从列表最左端向右查找并反向复查后仍未找到祥瑞聚宝，已返回大地图")
         for attempt in range(6):
             if self.region_text("^祥瑞聚宝$", (0, .03, .48, .18)):
                 break
